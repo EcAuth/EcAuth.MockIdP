@@ -1,0 +1,6 @@
+@MockOpenIdProvider_HostAddress = http://localhost:5204
+
+GET {{MockOpenIdProvider_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
