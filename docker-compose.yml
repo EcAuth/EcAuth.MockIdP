@@ -1,0 +1,46 @@
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  sqldata:
+    driver: local
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - sqldata:/var/opt/mssql
+    ports:
+      - "1433:1433"
+    networks:
+      - backend
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U ${DB_USER} -P '${DB_PASSWORD}' -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      retries: 10
+      start_period: 10s
+      timeout: 3s
+
+  mockopenidprovider:
+    image: ${DOCKER_REGISTRY-}mockopenidprovider
+    build:
+      context: .
+      dockerfile: src/MockOpenIdProvider/Dockerfile
+      args:
+        - GITHUB_TOKEN=${GITHUB_TOKEN}
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__MockIdpDbContext: "Server=${DB_HOST};Database=${DB_NAME};User Id=${DB_USER};Password=${DB_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true"
+      DEFAULT_ORGANIZATION: ${DEFAULT_ORGANIZATION}
+    ports:
+      - "9090:8080"
+      - "9091:8081"
+    networks:
+      - backend

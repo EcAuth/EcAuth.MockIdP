@@ -1,0 +1,24 @@
+# Environment variables
+.env
+
+# Node.js
+node_modules/
+package-lock.json
+yarn.lock
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

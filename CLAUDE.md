@@ -1,6 +1,7 @@
 # CLAUDE.md
 
 このファイルは、Claude Code が EcAuth.MockIdP コードベースを操作する際のガイダンスを提供します。
+日本語で回答してください。
 
 ## プロジェクト概要
 
@@ -151,11 +152,25 @@ EcAuth.MockIdP/
 │   └── MockOpenIdProvider.Test/      # ユニットテスト
 │       ├── TokenControllerTests.cs
 │       └── MockOpenIdProvider.Test.csproj
+├── e2e-tests/                        # Playwright E2E テスト
+│   ├── tests/
+│   │   ├── common/                   # 全organization共通テスト
+│   │   │   └── authorization_code_flow.spec.ts
+│   │   └── organizations/            # organization固有テスト
+│   │       ├── dev.spec.ts
+│   │       ├── staging.spec.ts
+│   │       └── production.spec.ts
+│   ├── fixtures/                     # カスタムfixture定義
+│   │   └── organization.ts
+│   ├── playwright.config.ts
+│   ├── package.json
+│   └── README.md
 ├── .github/
 │   └── workflows/                    # CI/CD パイプライン
 │       ├── ci.yml                    # ビルド・テスト
 │       ├── docker-build.yml          # Docker イメージビルド/プッシュ
-│       └── deploy.yml                # Azure デプロイ
+│       ├── deploy.yml                # Azure デプロイ
+│       └── e2e-tests.yml             # E2E テスト
 ├── nuget.config                      # NuGet ソース（GitHub Packages）
 ├── EcAuth.MockIdP.sln                # ソリューションファイル
 ├── README.md
@@ -245,6 +260,60 @@ host=github.com" | gh auth git-credential get | awk -F= '/username/ {u=$2} /pass
 - Azure Container Apps にデプロイ
 - `https://mock-idp.azurecontainerapps.io` 経由でアクセス
 - E2E テストで organization 指定: `?org=dev`
+
+**Playwright E2E テスト**:
+
+EcAuth.MockIdP リポジトリには、Playwright を使用した E2E テストスイートが含まれています（`e2e-tests/` ディレクトリ）。
+
+#### セットアップ
+
+```bash
+cd e2e-tests
+
+# 依存関係インストール
+npm install
+
+# Playwright インストール
+npx playwright install --with-deps chromium
+
+# 環境変数設定
+cp .env.example .env
+# .env を編集して環境を設定
+```
+
+#### テスト実行
+
+```bash
+# 全テスト実行
+npm test
+
+# Organization 別実行
+npm run test:dev
+npm run test:staging
+npm run test:production
+
+# デバッグモード
+npm run test:debug
+npm run test:ui
+```
+
+#### Organization Fixture
+
+E2E テストは Playwright の fixture 機能を活用し、マルチ Organization（dev/staging/production）対応のテストアーキテクチャを実現しています。
+
+```typescript
+test('テスト名', async ({
+  organization,    // "dev", "staging", "production"
+  endpoints,       // { authorization, token, userinfo }
+  clientId,        // Client ID
+  testUser,        // { email, password }
+}) => {
+  // organization 固有のエンドポイントを使用
+  await page.goto(endpoints.authorization);
+});
+```
+
+詳細は @e2e-tests/README.md を参照してください。
 
 ## デプロイ
 
