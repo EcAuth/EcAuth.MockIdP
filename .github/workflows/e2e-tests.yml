@@ -9,7 +9,41 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      # Database Configuration
+      DB_HOST: localhost
+      DB_PORT: 1433
+      MOCK_IDP_DB_NAME: MockIdpDb
+      DB_USER: sa
       DB_PASSWORD: YourStrong@Passw0rd
+      ConnectionStrings__MockIdpDbContext: Server=localhost;Database=MockIdpDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=true;MultipleActiveResultSets=true
+
+      # Application Settings
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTPS_PORT: 9091
+      ASPNETCORE_URLS: "https://0.0.0.0:9091"
+      DEFAULT_ORGANIZATION: dev
+
+      # Migration Seed Data - Default Client & User
+      MOCK_IDP_DEFAULT_CLIENT_ID: mockclientid
+      MOCK_IDP_DEFAULT_CLIENT_SECRET: mock-client-secret
+      MOCK_IDP_DEFAULT_CLIENT_NAME: MockClient
+      MOCK_IDP_DEFAULT_USER_EMAIL: defaultuser@example.com
+      MOCK_IDP_DEFAULT_USER_PASSWORD: password
+      DEFAULT_ORGANIZATION_REDIRECT_URI: http://localhost:8080/auth/callback
+
+      # Migration Seed Data - Federate Client & User
+      MOCK_IDP_FEDERATE_CLIENT_ID: federateclientid
+      MOCK_IDP_FEDERATE_CLIENT_SECRET: federate-client-secret
+      MOCK_IDP_FEDERATE_CLIENT_NAME: FederateClient
+      MOCK_IDP_FEDERATE_USER_EMAIL: federateuser@example.com
+
+      # E2E Test Configuration
+      MOCK_IDP_BASE_URL: https://localhost:9091
+      CLIENT_ID: mockclientid
+      CLIENT_SECRET: mock-client-secret
+      REDIRECT_URI: https://localhost:8081/auth/callback
+      TEST_USER_EMAIL: defaultuser@example.com
+      TEST_USER_PASSWORD: password
 
     services:
       sqlserver:
@@ -28,21 +62,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-
-      # 環境変数設定
-      - name: Load environment variables from .env.dist
-        run: |
-          grep -v '^#' .env.dist | grep -v '^$' >> $GITHUB_ENV
-      - run: echo "DB_HOST=localhost" >> $GITHUB_ENV
-      - run: echo "ConnectionStrings__MockIdpDbContext=Server=${DB_HOST};Database=${MOCK_IDP_DB_NAME};User Id=${DB_USER};Password=${DB_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true" >> $GITHUB_ENV
-
-      # E2Eテスト用環境変数
-      - run: echo "MOCK_IDP_BASE_URL=https://localhost:9091" >> $GITHUB_ENV
-      - run: echo "CLIENT_ID=mockclientid" >> $GITHUB_ENV
-      - run: echo "CLIENT_SECRET=mock-client-secret" >> $GITHUB_ENV
-      - run: echo "REDIRECT_URI=https://localhost:8081/auth/callback" >> $GITHUB_ENV
-      - run: echo "TEST_USER_EMAIL=defaultuser@example.com" >> $GITHUB_ENV
-      - run: echo "TEST_USER_PASSWORD=password" >> $GITHUB_ENV
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
@@ -87,11 +106,7 @@ jobs:
 
       - name: Start MockOpenIdProvider
         run: |
-          export ASPNETCORE_HTTPS_PORT=9091
-          export ASPNETCORE_URLS="https://0.0.0.0:9091"
           dotnet run --project src/MockOpenIdProvider --configuration Release --urls "https://0.0.0.0:9091" &
-        env:
-          ASPNETCORE_ENVIRONMENT: Development
 
       - name: Wait for MockOpenIdProvider to be ready
         run: |
