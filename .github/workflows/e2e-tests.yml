@@ -30,7 +30,9 @@ jobs:
         uses: actions/checkout@v5
 
       # 環境変数設定
-      - run: cat .env.dist >> $GITHUB_ENV
+      - name: Load environment variables from .env.dist
+        run: |
+          grep -v '^#' .env.dist | grep -v '^$' >> $GITHUB_ENV
       - run: echo "DB_HOST=localhost" >> $GITHUB_ENV
       - run: echo "ConnectionStrings__MockIdpDbContext=Server=${DB_HOST};Database=${MOCK_IDP_DB_NAME};User Id=${DB_USER};Password=${DB_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true" >> $GITHUB_ENV
 
@@ -53,7 +55,7 @@ jobs:
           dotnet nuget add source https://nuget.pkg.github.com/EcAuth/index.json \
             --name github \
             --username ${{ github.actor }} \
-            --password ${{ secrets.PACKAGES_READ_TOKEN }} \
+            --password ${{ secrets.ORG_PAT }} \
             --store-password-in-clear-text
 
       - name: Restore .NET tools
