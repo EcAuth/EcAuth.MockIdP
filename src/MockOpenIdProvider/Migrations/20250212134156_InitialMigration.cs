@@ -89,10 +89,25 @@ namespace MockOpenIdProvider.Migrations
             var privateKey = rsa.ExportRSAPrivateKeyPem();
             var publicKey = rsa.ExportRSAPublicKeyPem();
 
-            var CLIENT_ID = DotNetEnv.Env.GetString("MOCK_IDP_DEFAULT_CLIENT_ID");
-            var CLIENT_SECRET = DotNetEnv.Env.GetString("MOCK_IDP_DEFAULT_CLIENT_SECRET");
-            var CLIENT_NAME = DotNetEnv.Env.GetString("MOCK_IDP_DEFAULT_CLIENT_NAME");
-            var DEFAULT_ORGANIZATION_REDIRECT_URI = DotNetEnv.Env.GetString("DEFAULT_ORGANIZATION_REDIRECT_URI");
+            // 環境変数から値を取得（GitHub Actions 対応）
+            // .env ファイルが存在する場合は読み込む（ローカル開発環境用）
+            try
+            {
+                DotNetEnv.Env.TraversePath().Load();
+            }
+            catch
+            {
+                // .env ファイルが存在しない場合（GitHub Actions 等）は無視
+            }
+
+            var CLIENT_ID = Environment.GetEnvironmentVariable("MOCK_IDP_DEFAULT_CLIENT_ID")
+                ?? throw new InvalidOperationException("MOCK_IDP_DEFAULT_CLIENT_ID is required");
+            var CLIENT_SECRET = Environment.GetEnvironmentVariable("MOCK_IDP_DEFAULT_CLIENT_SECRET")
+                ?? throw new InvalidOperationException("MOCK_IDP_DEFAULT_CLIENT_SECRET is required");
+            var CLIENT_NAME = Environment.GetEnvironmentVariable("MOCK_IDP_DEFAULT_CLIENT_NAME")
+                ?? throw new InvalidOperationException("MOCK_IDP_DEFAULT_CLIENT_NAME is required");
+            var DEFAULT_ORGANIZATION_REDIRECT_URI = Environment.GetEnvironmentVariable("DEFAULT_ORGANIZATION_REDIRECT_URI")
+                ?? throw new InvalidOperationException("DEFAULT_ORGANIZATION_REDIRECT_URI is required");
             migrationBuilder.Sql(@$"
                 INSERT INTO client
                     (client_id, client_secret, client_name, redirect_uri, public_key, private_key)

@@ -12,11 +12,23 @@ namespace MockOpenIdProvider.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // 環境変数から値を取得
-            DotNetEnv.Env.TraversePath().Load();
-            var MOCK_IDP_DEFAULT_CLIENT_ID = DotNetEnv.Env.GetString("MOCK_IDP_DEFAULT_CLIENT_ID");
-            var MOCK_IDP_DEFAULT_USER_EMAIL = DotNetEnv.Env.GetString("MOCK_IDP_DEFAULT_USER_EMAIL");
-            var MOCK_IDP_DEFAULT_USER_PASSWORD = DotNetEnv.Env.GetString("MOCK_IDP_DEFAULT_USER_PASSWORD");
+            // 環境変数から値を取得（GitHub Actions 対応）
+            // .env ファイルが存在する場合は読み込む（ローカル開発環境用）
+            try
+            {
+                DotNetEnv.Env.TraversePath().Load();
+            }
+            catch
+            {
+                // .env ファイルが存在しない場合（GitHub Actions 等）は無視
+            }
+
+            var MOCK_IDP_DEFAULT_CLIENT_ID = Environment.GetEnvironmentVariable("MOCK_IDP_DEFAULT_CLIENT_ID")
+                ?? throw new InvalidOperationException("MOCK_IDP_DEFAULT_CLIENT_ID is required");
+            var MOCK_IDP_DEFAULT_USER_EMAIL = Environment.GetEnvironmentVariable("MOCK_IDP_DEFAULT_USER_EMAIL")
+                ?? throw new InvalidOperationException("MOCK_IDP_DEFAULT_USER_EMAIL is required");
+            var MOCK_IDP_DEFAULT_USER_PASSWORD = Environment.GetEnvironmentVariable("MOCK_IDP_DEFAULT_USER_PASSWORD")
+                ?? throw new InvalidOperationException("MOCK_IDP_DEFAULT_USER_PASSWORD is required");
 
             // パスワードをハッシュ化
             PasswordHasher<MockIdpUser> passwordHasher = new PasswordHasher<MockIdpUser>();

@@ -13,14 +13,29 @@ namespace MockOpenIdProvider.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // 環境変数から値を取得
-            DotNetEnv.Env.TraversePath().Load();
-            var MOCK_IDP_FEDERATE_CLIENT_ID = DotNetEnv.Env.GetString("MOCK_IDP_FEDERATE_CLIENT_ID");
-            var MOCK_IDP_FEDERATE_CLIENT_SECRET = DotNetEnv.Env.GetString("MOCK_IDP_FEDERATE_CLIENT_SECRET");
-            var MOCK_IDP_FEDERATE_CLIENT_NAME = DotNetEnv.Env.GetString("MOCK_IDP_FEDERATE_CLIENT_NAME");
-            var DEFAULT_ORGANIZATION_REDIRECT_URI = DotNetEnv.Env.GetString("DEFAULT_ORGANIZATION_REDIRECT_URI");
-            var MOCK_IDP_FEDERATE_USER_EMAIL = DotNetEnv.Env.GetString("MOCK_IDP_FEDERATE_USER_EMAIL");
-            var MOCK_IDP_DEFAULT_USER_PASSWORD = DotNetEnv.Env.GetString("MOCK_IDP_DEFAULT_USER_PASSWORD");
+            // 環境変数から値を取得（GitHub Actions 対応）
+            // .env ファイルが存在する場合は読み込む（ローカル開発環境用）
+            try
+            {
+                DotNetEnv.Env.TraversePath().Load();
+            }
+            catch
+            {
+                // .env ファイルが存在しない場合（GitHub Actions 等）は無視
+            }
+
+            var MOCK_IDP_FEDERATE_CLIENT_ID = Environment.GetEnvironmentVariable("MOCK_IDP_FEDERATE_CLIENT_ID")
+                ?? throw new InvalidOperationException("MOCK_IDP_FEDERATE_CLIENT_ID is required");
+            var MOCK_IDP_FEDERATE_CLIENT_SECRET = Environment.GetEnvironmentVariable("MOCK_IDP_FEDERATE_CLIENT_SECRET")
+                ?? throw new InvalidOperationException("MOCK_IDP_FEDERATE_CLIENT_SECRET is required");
+            var MOCK_IDP_FEDERATE_CLIENT_NAME = Environment.GetEnvironmentVariable("MOCK_IDP_FEDERATE_CLIENT_NAME")
+                ?? throw new InvalidOperationException("MOCK_IDP_FEDERATE_CLIENT_NAME is required");
+            var DEFAULT_ORGANIZATION_REDIRECT_URI = Environment.GetEnvironmentVariable("DEFAULT_ORGANIZATION_REDIRECT_URI")
+                ?? throw new InvalidOperationException("DEFAULT_ORGANIZATION_REDIRECT_URI is required");
+            var MOCK_IDP_FEDERATE_USER_EMAIL = Environment.GetEnvironmentVariable("MOCK_IDP_FEDERATE_USER_EMAIL")
+                ?? throw new InvalidOperationException("MOCK_IDP_FEDERATE_USER_EMAIL is required");
+            var MOCK_IDP_DEFAULT_USER_PASSWORD = Environment.GetEnvironmentVariable("MOCK_IDP_DEFAULT_USER_PASSWORD")
+                ?? throw new InvalidOperationException("MOCK_IDP_DEFAULT_USER_PASSWORD is required");
 
             // RSA鍵ペアを生成
             using RSA rsa = RSA.Create();
@@ -66,10 +81,21 @@ namespace MockOpenIdProvider.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            // 環境変数から値を取得
-            DotNetEnv.Env.TraversePath().Load();
-            var MOCK_IDP_FEDERATE_USER_EMAIL = DotNetEnv.Env.GetString("MOCK_IDP_FEDERATE_USER_EMAIL");
-            var MOCK_IDP_FEDERATE_CLIENT_ID = DotNetEnv.Env.GetString("MOCK_IDP_FEDERATE_CLIENT_ID");
+            // 環境変数から値を取得（GitHub Actions 対応）
+            // .env ファイルが存在する場合は読み込む（ローカル開発環境用）
+            try
+            {
+                DotNetEnv.Env.TraversePath().Load();
+            }
+            catch
+            {
+                // .env ファイルが存在しない場合（GitHub Actions 等）は無視
+            }
+
+            var MOCK_IDP_FEDERATE_USER_EMAIL = Environment.GetEnvironmentVariable("MOCK_IDP_FEDERATE_USER_EMAIL")
+                ?? throw new InvalidOperationException("MOCK_IDP_FEDERATE_USER_EMAIL is required");
+            var MOCK_IDP_FEDERATE_CLIENT_ID = Environment.GetEnvironmentVariable("MOCK_IDP_FEDERATE_CLIENT_ID")
+                ?? throw new InvalidOperationException("MOCK_IDP_FEDERATE_CLIENT_ID is required");
 
             migrationBuilder.Sql($@"
                 DELETE FROM mock_idp_user 
