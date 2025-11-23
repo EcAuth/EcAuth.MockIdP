@@ -1,0 +1,153 @@
+name: Playwright E2E Tests - MockOpenIdProvider
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    env:
+      # Database Configuration
+      DB_HOST: localhost
+      DB_PORT: 1433
+      MOCK_IDP_DB_NAME: MockIdpDb
+      DB_USER: sa
+      DB_PASSWORD: YourStrong@Passw0rd
+      ConnectionStrings__MockIdpDbContext: Server=localhost;Database=MockIdpDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=true;MultipleActiveResultSets=true
+
+      # Application Settings
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTPS_PORT: 9091
+      ASPNETCORE_URLS: "https://0.0.0.0:9091"
+      DEFAULT_ORGANIZATION: dev
+
+      # Migration Seed Data - Default Client & User
+      MOCK_IDP_DEFAULT_CLIENT_ID: mockclientid
+      MOCK_IDP_DEFAULT_CLIENT_SECRET: mock-client-secret
+      MOCK_IDP_DEFAULT_CLIENT_NAME: MockClient
+      MOCK_IDP_DEFAULT_USER_EMAIL: defaultuser@example.com
+      MOCK_IDP_DEFAULT_USER_PASSWORD: password
+      DEFAULT_ORGANIZATION_REDIRECT_URI: https://localhost:8081/auth/callback
+
+      # Migration Seed Data - Federate Client & User
+      MOCK_IDP_FEDERATE_CLIENT_ID: federateclientid
+      MOCK_IDP_FEDERATE_CLIENT_SECRET: federate-client-secret
+      MOCK_IDP_FEDERATE_CLIENT_NAME: FederateClient
+      MOCK_IDP_FEDERATE_USER_EMAIL: federateuser@example.com
+
+      # E2E Test Configuration
+      MOCK_IDP_BASE_URL: https://localhost:9091
+      CLIENT_ID: mockclientid
+      CLIENT_SECRET: mock-client-secret
+      REDIRECT_URI: https://localhost:8081/auth/callback
+      TEST_USER_EMAIL: defaultuser@example.com
+      TEST_USER_PASSWORD: password
+
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          SA_PASSWORD: ${{ env.DB_PASSWORD }}
+          ACCEPT_EULA: "Y"
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "exit 0"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Add GitHub Packages source with credentials
+        run: |
+          dotnet nuget remove source github || true
+          dotnet nuget add source https://nuget.pkg.github.com/EcAuth/index.json \
+            --name github \
+            --username ${{ github.actor }} \
+            --password ${{ secrets.ORG_PAT }} \
+            --store-password-in-clear-text
+
+      - name: Restore .NET tools
+        run: dotnet tool restore
+
+      - name: Install dependencies
+        run: dotnet restore ./EcAuth.MockIdP.sln
+
+      - name: Build MockOpenIdProvider
+        run: dotnet build --no-restore --configuration Release src/MockOpenIdProvider
+
+      - name: Verify environment variables
+        run: |
+          echo "DB_HOST: ${DB_HOST}"
+          echo "MOCK_IDP_DB_NAME: ${MOCK_IDP_DB_NAME}"
+          echo "DB_USER: ${DB_USER}"
+          echo "ConnectionString: ${ConnectionStrings__MockIdpDbContext}"
+
+      - name: Migrate MockOpenIdProvider DB
+        working-directory: src/MockOpenIdProvider
+        run: dotnet ef database update
+
+      - name: Generate development HTTPS certificate
+        run: |
+          mkdir -p ${HOME}/.aspnet/https
+          dotnet dev-certs https -ep ${HOME}/.aspnet/https/aspnetapp.pfx -p changeit --trust
+          echo "ASPNETCORE_Kestrel__Certificates__Default__Path=${HOME}/.aspnet/https/aspnetapp.pfx" >> $GITHUB_ENV
+          echo "ASPNETCORE_Kestrel__Certificates__Default__Password=changeit" >> $GITHUB_ENV
+
+      - name: Start MockOpenIdProvider
+        run: |
+          dotnet run --project src/MockOpenIdProvider --configuration Release --urls "https://0.0.0.0:9091" &
+
+      - name: Wait for MockOpenIdProvider to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -k https://localhost:9091/health 2>/dev/null; then
+              echo "MockOpenIdProvider is ready"
+              break
+            fi
+            echo "Waiting for MockOpenIdProvider to start... ($i/30)"
+            sleep 2
+          done
+
+      - name: Install Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install Playwright
+        working-directory: e2e-tests
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+
+      - name: Run Playwright E2E Tests
+        working-directory: e2e-tests
+        run: npx playwright test
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: 'e2e-tests/test-results/'
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: 'e2e-tests/playwright-report/'
+
+      - name: Display MockOpenIdProvider logs
+        if: failure()
+        run: cat src/MockOpenIdProvider/logs/*.log || echo "No logs found"

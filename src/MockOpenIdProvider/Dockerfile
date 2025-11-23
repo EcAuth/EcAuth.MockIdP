@@ -25,6 +25,7 @@ WORKDIR /src
 # nuget.configをコピーしてGitHub Packages認証を設定
 COPY ["nuget.config", "."]
 RUN if [ ! -z "$GITHUB_TOKEN" ]; then \
+    dotnet nuget remove source github 2>/dev/null || true && \
     dotnet nuget add source https://nuget.pkg.github.com/EcAuth/index.json \
     --name github \
     --username docker \

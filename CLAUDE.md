@@ -1,6 +1,7 @@
 # CLAUDE.md
 
 このファイルは、Claude Code が EcAuth.MockIdP コードベースを操作する際のガイダンスを提供します。
+日本語で回答してください。
 
 ## プロジェクト概要
 
@@ -78,6 +79,55 @@ cp .env.dist .env
 # .env を編集してデータベース接続文字列を設定
 ```
 
+### GitHub Packages 認証
+
+このプロジェクトは GitHub Packages から `EcAuth.IdpUtilities` NuGet パッケージを取得するため、認証設定が必要です。
+
+#### ローカル開発環境
+
+上記の `gh auth git-credential` コマンドで自動設定されます。手動で設定する場合：
+
+```bash
+# GitHub Personal Access Token を使用
+dotnet nuget add source https://nuget.pkg.github.com/EcAuth/index.json \
+  --name github \
+  --username <your-github-username> \
+  --password <your-github-token> \
+  --store-password-in-clear-text
+```
+
+#### GitHub Actions 環境
+
+**Organization secrets として `ORG_PAT` を使用（推奨）:**
+
+```yaml
+- name: Add GitHub Packages source with credentials
+  run: |
+    dotnet nuget remove source github || true
+    dotnet nuget add source https://nuget.pkg.github.com/EcAuth/index.json \
+      --name github \
+      --username ${{ github.actor }} \
+      --password ${{ secrets.ORG_PAT || secrets.PACKAGES_READ_TOKEN }} \
+      --store-password-in-clear-text
+```
+
+**設定されているシークレット:**
+- `ORG_PAT`: Organization レベルのトークン（**推奨**、今後はこちらを使用）
+- `PACKAGES_READ_TOKEN`: 後方互換性のために残している従来のトークン
+
+**Docker ビルド時:**
+
+```yaml
+- name: Build Docker image
+  run: |
+    docker build --build-arg GITHUB_TOKEN=${{ secrets.ORG_PAT || secrets.PACKAGES_READ_TOKEN }} \
+      -t mock-idp:latest \
+      -f src/MockOpenIdProvider/Dockerfile .
+```
+
+**必要なスコープ:**
+- `read:packages`: GitHub Packages からのパッケージ読み取り
+
 ### ビルドとテスト
 
 ```bash
@@ -90,6 +140,50 @@ dotnet test
 # 特定のテストクラス実行
 dotnet test --filter ClassName=TokenControllerTests
 ```
+
+### E2E テスト
+
+Playwright を使用した E2E テストスイートが `e2e-tests/` ディレクトリに配置されています。
+
+```bash
+cd e2e-tests
+
+# 依存関係インストール
+npm install
+
+# Playwright インストール
+npx playwright install --with-deps chromium
+
+# 環境変数設定
+cp .env.example .env
+# .env を編集して環境を設定
+
+# 全テスト実行
+npm test
+
+# Organization 別実行
+npm run test:dev
+npm run test:staging
+npm run test:production
+
+# デバッグモード
+npm run test:debug
+npm run test:ui
+```
+
+**Docker Compose 環境でのテスト:**
+
+```bash
+# Docker Compose を起動
+docker compose up -d
+
+# E2E テストを実行
+cd e2e-tests
+export MOCK_IDP_BASE_URL=https://localhost:9091
+npm test
+```
+
+詳細は @e2e-tests/README.md を参照してください。
 
 ### データベース操作
 
@@ -108,8 +202,10 @@ dotnet ef migrations remove
 
 ### Docker
 
+#### Docker イメージのビルド
+
 ```bash
-# Docker イメージビルド（リポジトリルートから）
+# リポジトリルートから実行
 docker build --build-arg GITHUB_TOKEN=<your_token> -t mock-idp:latest -f src/MockOpenIdProvider/Dockerfile .
 
 # コンテナ起動
@@ -117,6 +213,52 @@ docker run -d -p 8080:8080 -p 8081:8081 \
   -e ConnectionStrings__MockIdpDbContext="Server=..." \
   mock-idp:latest
 ```
+
+#### Docker Compose での起動
+
+Docker Compose を使用すると、SQL Server と MockOpenIdProvider を同時に起動できます。
+
+```bash
+# .env ファイルを確認（GITHUB_TOKEN が設定されていること）
+cat .env | grep GITHUB_TOKEN
+
+# ビルド・起動
+docker compose up -d --build
+
+# マイグレーション実行（初回のみ）
+cd src/MockOpenIdProvider
+export ConnectionStrings__MockIdpDbContext="Server=localhost,1433;Database=MockIdpDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=true;"
+export MOCK_IDP_DEFAULT_CLIENT_ID=mockclientid
+export MOCK_IDP_DEFAULT_CLIENT_SECRET=mock-client-secret
+export MOCK_IDP_DEFAULT_CLIENT_NAME=MockClient
+export MOCK_IDP_DEFAULT_USER_EMAIL=defaultuser@example.com
+export MOCK_IDP_DEFAULT_USER_PASSWORD=password
+export MOCK_IDP_FEDERATE_CLIENT_ID=federateclientid
+export MOCK_IDP_FEDERATE_CLIENT_SECRET=federate-client-secret
+export MOCK_IDP_FEDERATE_CLIENT_NAME=FederateClient
+export DEFAULT_ORGANIZATION_REDIRECT_URI=http://localhost:8080/auth/callback
+export MOCK_IDP_FEDERATE_USER_EMAIL=federateuser@example.com
+dotnet ef database update
+
+# ログ確認
+docker compose logs -f mockopenidprovider
+
+# 停止
+docker compose down
+```
+
+**アクセス URL:**
+- HTTP: `http://localhost:9090`
+- HTTPS: `https://localhost:9091`
+
+**Docker Compose の構成:**
+- `db`: SQL Server 2022 コンテナ（port 1433）
+- `mockopenidprovider`: MockOpenIdProvider API（port 9090:HTTP, 9091:HTTPS）
+
+**注意事項:**
+- `.env` に `GITHUB_TOKEN` が設定されている必要があります
+- Docker ビルド時に `EcAuth.IdpUtilities` パッケージをダウンロードするため
+- 初回起動後にマイグレーションの実行が必要です
 
 ## プロジェクト構造
 
@@ -151,11 +293,25 @@ EcAuth.MockIdP/
 │   └── MockOpenIdProvider.Test/      # ユニットテスト
 │       ├── TokenControllerTests.cs
 │       └── MockOpenIdProvider.Test.csproj
+├── e2e-tests/                        # Playwright E2E テスト
+│   ├── tests/
+│   │   ├── common/                   # 全organization共通テスト
+│   │   │   └── authorization_code_flow.spec.ts
+│   │   └── organizations/            # organization固有テスト
+│   │       ├── dev.spec.ts
+│   │       ├── staging.spec.ts
+│   │       └── production.spec.ts
+│   ├── fixtures/                     # カスタムfixture定義
+│   │   └── organization.ts
+│   ├── playwright.config.ts
+│   ├── package.json
+│   └── README.md
 ├── .github/
 │   └── workflows/                    # CI/CD パイプライン
 │       ├── ci.yml                    # ビルド・テスト
 │       ├── docker-build.yml          # Docker イメージビルド/プッシュ
-│       └── deploy.yml                # Azure デプロイ
+│       ├── deploy.yml                # Azure デプロイ
+│       └── e2e-tests.yml             # E2E テスト
 ├── nuget.config                      # NuGet ソース（GitHub Packages）
 ├── EcAuth.MockIdP.sln                # ソリューションファイル
 ├── README.md
@@ -245,6 +401,60 @@ host=github.com" | gh auth git-credential get | awk -F= '/username/ {u=$2} /pass
 - Azure Container Apps にデプロイ
 - `https://mock-idp.azurecontainerapps.io` 経由でアクセス
 - E2E テストで organization 指定: `?org=dev`
+
+**Playwright E2E テスト**:
+
+EcAuth.MockIdP リポジトリには、Playwright を使用した E2E テストスイートが含まれています（`e2e-tests/` ディレクトリ）。
+
+#### セットアップ
+
+```bash
+cd e2e-tests
+
+# 依存関係インストール
+npm install
+
+# Playwright インストール
+npx playwright install --with-deps chromium
+
+# 環境変数設定
+cp .env.example .env
+# .env を編集して環境を設定
+```
+
+#### テスト実行
+
+```bash
+# 全テスト実行
+npm test
+
+# Organization 別実行
+npm run test:dev
+npm run test:staging
+npm run test:production
+
+# デバッグモード
+npm run test:debug
+npm run test:ui
+```
+
+#### Organization Fixture
+
+E2E テストは Playwright の fixture 機能を活用し、マルチ Organization（dev/staging/production）対応のテストアーキテクチャを実現しています。
+
+```typescript
+test('テスト名', async ({
+  organization,    // "dev", "staging", "production"
+  endpoints,       // { authorization, token, userinfo }
+  clientId,        // Client ID
+  testUser,        // { email, password }
+}) => {
+  // organization 固有のエンドポイントを使用
+  await page.goto(endpoints.authorization);
+});
+```
+
+詳細は @e2e-tests/README.md を参照してください。
 
 ## デプロイ
 

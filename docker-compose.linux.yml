@@ -1,0 +1,12 @@
+services:
+  mockopenidprovider:
+    build:
+      target: final-with-https
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_HTTPS_PORTS=8081
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=changeit
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+    volumes:
+      - ${HOME}/.microsoft/usersecrets:/home/app/.microsoft/usersecrets:ro
