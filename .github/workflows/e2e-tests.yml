@@ -78,6 +78,13 @@ jobs:
         working-directory: src/MockOpenIdProvider
         run: dotnet ef database update
 
+      - name: Generate development HTTPS certificate
+        run: |
+          mkdir -p ${HOME}/.aspnet/https
+          dotnet dev-certs https -ep ${HOME}/.aspnet/https/aspnetapp.pfx -p changeit --trust
+          echo "ASPNETCORE_Kestrel__Certificates__Default__Path=${HOME}/.aspnet/https/aspnetapp.pfx" >> $GITHUB_ENV
+          echo "ASPNETCORE_Kestrel__Certificates__Default__Password=changeit" >> $GITHUB_ENV
+
       - name: Start MockOpenIdProvider
         run: |
           export ASPNETCORE_HTTPS_PORT=9091
