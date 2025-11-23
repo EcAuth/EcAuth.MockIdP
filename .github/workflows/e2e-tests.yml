@@ -67,6 +67,13 @@ jobs:
       - name: Build MockOpenIdProvider
         run: dotnet build --no-restore --configuration Release src/MockOpenIdProvider
 
+      - name: Verify environment variables
+        run: |
+          echo "DB_HOST: ${DB_HOST}"
+          echo "MOCK_IDP_DB_NAME: ${MOCK_IDP_DB_NAME}"
+          echo "DB_USER: ${DB_USER}"
+          echo "ConnectionString: ${ConnectionStrings__MockIdpDbContext}"
+
       - name: Migrate MockOpenIdProvider DB
         working-directory: src/MockOpenIdProvider
         run: dotnet ef database update
