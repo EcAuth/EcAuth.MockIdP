@@ -37,8 +37,21 @@ services:
       db:
         condition: service_healthy
     environment:
-      ConnectionStrings__MockIdpDbContext: "Server=${DB_HOST};Database=${DB_NAME};User Id=${DB_USER};Password=${DB_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true"
+      ConnectionStrings__MockIdpDbContext: "Server=db;Database=${DB_NAME};User Id=${DB_USER};Password=${DB_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true"
       DEFAULT_ORGANIZATION: ${DEFAULT_ORGANIZATION}
+      MOCK_IDP_DEFAULT_USER_PASSWORD: ${MOCK_IDP_DEFAULT_USER_PASSWORD}
+      MOCK_IDP_DEFAULT_CLIENT_ID: ${MOCK_IDP_DEFAULT_CLIENT_ID}
+      MOCK_IDP_DEFAULT_CLIENT_SECRET: ${MOCK_IDP_DEFAULT_CLIENT_SECRET}
+      MOCK_IDP_DEFAULT_CLIENT_NAME: ${MOCK_IDP_DEFAULT_CLIENT_NAME}
+      MOCK_IDP_DEFAULT_USER_EMAIL: ${MOCK_IDP_DEFAULT_USER_EMAIL}
+      MOCK_IDP_FEDERATE_CLIENT_ID: ${MOCK_IDP_FEDERATE_CLIENT_ID}
+      MOCK_IDP_FEDERATE_CLIENT_SECRET: ${MOCK_IDP_FEDERATE_CLIENT_SECRET}
+      MOCK_IDP_FEDERATE_CLIENT_NAME: ${MOCK_IDP_FEDERATE_CLIENT_NAME}
+      DEFAULT_ORGANIZATION_REDIRECT_URI: ${DEFAULT_ORGANIZATION_REDIRECT_URI}
+      MOCK_IDP_FEDERATE_USER_EMAIL: ${MOCK_IDP_FEDERATE_USER_EMAIL}
+      ASPNETCORE_URLS: "http://+:8080;https://+:8081"
+      ASPNETCORE_Kestrel__Certificates__Default__Path: "/https/aspnetapp.pfx"
+      ASPNETCORE_Kestrel__Certificates__Default__Password: "changeit"
     ports:
       - "9090:8080"
       - "9091:8081"
