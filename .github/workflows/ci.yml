@@ -1,0 +1,39 @@
+name: .NET Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: '9.0.x'
+
+    - name: Add GitHub Packages source with credentials
+      run: |
+        dotnet nuget remove source github || true
+        dotnet nuget add source https://nuget.pkg.github.com/EcAuth/index.json \
+          --name github \
+          --username ${{ github.actor }} \
+          --password ${{ secrets.ORG_PAT }} \
+          --store-password-in-clear-text
+
+    - name: Restore .NET tools
+      run: dotnet tool restore
+
+    - name: Restore dependencies
+      run: dotnet restore ./EcAuth.MockIdP.sln
+
+    - name: Build
+      run: dotnet build ./EcAuth.MockIdP.sln --no-restore
+
+    - name: Test
+      run: dotnet test ./EcAuth.MockIdP.sln --no-build --verbosity normal

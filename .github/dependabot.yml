@@ -1,0 +1,59 @@
+version: 2
+updates:
+  # GitHub Actions の自動更新
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Tokyo"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
+  # .NET NuGet パッケージの自動更新
+  - package-ecosystem: "nuget"
+    directories:
+      - "/"
+      - "/src/MockOpenIdProvider"
+      - "/tests/MockOpenIdProvider.Test"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+      timezone: "Asia/Tokyo"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "dotnet"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    # セキュリティアップデートは即座に作成
+    allow:
+      - dependency-type: "all"
+
+  # E2E Tests の npm パッケージの自動更新
+  - package-ecosystem: "npm"
+    directory: "/e2e-tests"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "09:00"
+      timezone: "Asia/Tokyo"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "npm"
+      - "e2e-tests"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    # 開発依存関係も含める
+    allow:
+      - dependency-type: "all"
