@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using MockOpenIdProvider.Models;
 using MockOpenIdProvider.Services;
 using MockOpenIdProvider.Middlewares;
@@ -27,6 +28,10 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddOptions<MockIdP>().BindConfiguration(nameof(MockIdP)).ValidateDataAnnotations();
+
+// Health Checks
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<IdpDbContext>(tags: new[] { "ready" });
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -44,5 +49,16 @@ app.UseMiddleware<OrganizationMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Health Check Endpoints
+app.MapHealthChecks("/healthz");
+app.MapHealthChecks("/healthz/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready")
+});
+app.MapHealthChecks("/healthz/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = _ => false  // データベースチェック不要（プロセス生存のみ）
+});
 
 app.Run();
