@@ -34,5 +34,16 @@ namespace MockOpenIdProvider.Controllers
             })
             .ToArray();
         }
+
+        [HttpGet("version")]
+        public IActionResult GetVersion()
+        {
+            return Ok(new
+            {
+                version = "1.0.1",
+                deployedAt = "2024-11-29T08:30:00Z",
+                message = "Deployed via GitHub Actions CI/CD pipeline"
+            });
+        }
     }
 }
