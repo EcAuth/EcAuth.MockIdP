@@ -43,10 +43,8 @@ jobs:
           --password ${{ secrets.ORG_PAT }} \
           --store-password-in-clear-text
 
-    - name: Install EF Core tools
-      run: |
-        dotnet tool install --global dotnet-ef
-        echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+    - name: Restore EF Core tools
+      run: dotnet tool restore
 
     - name: Restore dependencies
       run: dotnet restore src/MockOpenIdProvider/MockOpenIdProvider.csproj
