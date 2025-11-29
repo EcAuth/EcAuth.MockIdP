@@ -1,0 +1,69 @@
+name: Database Migration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/MockOpenIdProvider/Migrations/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+
+env:
+  DOTNET_VERSION: '9.0.x'
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Add GitHub Packages source with credentials
+      run: |
+        dotnet nuget remove source github || true
+        dotnet nuget add source https://nuget.pkg.github.com/EcAuth/index.json \
+          --name github \
+          --username ${{ github.actor }} \
+          --password ${{ secrets.ORG_PAT }} \
+          --store-password-in-clear-text
+
+    - name: Install EF Core tools
+      run: dotnet tool install --global dotnet-ef
+
+    - name: Restore dependencies
+      run: dotnet restore src/MockOpenIdProvider/MockOpenIdProvider.csproj
+
+    - name: Build
+      run: dotnet build src/MockOpenIdProvider/MockOpenIdProvider.csproj --no-restore
+
+    - name: Run database migrations
+      env:
+        ConnectionStrings__MockIdpDbContext: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
+        MOCK_IDP_DEFAULT_CLIENT_ID: ${{ vars.MOCK_IDP_DEFAULT_CLIENT_ID || 'mockclientid' }}
+        MOCK_IDP_FEDERATE_CLIENT_ID: ${{ vars.MOCK_IDP_FEDERATE_CLIENT_ID || 'federateclientid' }}
+      run: |
+        cd src/MockOpenIdProvider
+        dotnet ef database update --verbose
+
+    - name: Verify migration
+      env:
+        ConnectionStrings__MockIdpDbContext: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
+      run: |
+        cd src/MockOpenIdProvider
+        dotnet ef migrations list
