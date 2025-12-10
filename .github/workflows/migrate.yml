@@ -67,6 +67,13 @@ jobs:
         MOCK_IDP_FEDERATE_CLIENT_SECRET: ${{ secrets.MOCK_IDP_FEDERATE_CLIENT_SECRET || 'federate-client-secret' }}
         MOCK_IDP_FEDERATE_CLIENT_NAME: ${{ vars.MOCK_IDP_FEDERATE_CLIENT_NAME || 'FederateClient' }}
         MOCK_IDP_FEDERATE_USER_EMAIL: ${{ vars.MOCK_IDP_FEDERATE_USER_EMAIL || 'federateuser@example.com' }}
+        # Staging 用ダミー値（dev 環境のマイグレーション実行に必要）
+        MOCKIDP_STAGING_CLIENT_ID: staging-dummy-clientid
+        MOCKIDP_STAGING_CLIENT_SECRET: staging-dummy-secret
+        MOCKIDP_STAGING_CLIENT_NAME: StagingDummyClient
+        MOCKIDP_STAGING_REDIRECT_URI: https://localhost:8081/auth/callback
+        MOCKIDP_STAGING_USER_EMAIL: staging-dummy@example.com
+        MOCKIDP_STAGING_USER_PASSWORD: dummy-password
       run: |
         cd src/MockOpenIdProvider
         dotnet ef database update --verbose
