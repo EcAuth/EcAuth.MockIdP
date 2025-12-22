@@ -81,7 +81,7 @@ jobs:
     # staging 環境: 1Password からシークレットを取得
     - name: Load secrets from 1Password (staging)
       if: github.event.inputs.environment == 'staging'
-      uses: 1password/load-secrets-action@v2
+      uses: 1password/load-secrets-action@v3
       with:
         export-env: true
       env:
@@ -111,7 +111,7 @@ jobs:
     # production 環境: 1Password (Prod) からシークレットを取得
     - name: Load secrets from 1Password (production)
       if: github.event.inputs.environment == 'production'
-      uses: 1password/load-secrets-action@v2
+      uses: 1password/load-secrets-action@v3
       with:
         export-env: true
       env:
