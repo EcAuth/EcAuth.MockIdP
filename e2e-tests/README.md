@@ -66,13 +66,13 @@ TEST_USER_PASSWORD=password
 ### 2. 依存関係インストール
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### 3. Playwright インストール
 
 ```bash
-npx playwright install --with-deps chromium
+pnpm exec playwright install --with-deps chromium
 ```
 
 ## テスト実行
@@ -80,40 +80,40 @@ npx playwright install --with-deps chromium
 ### 全テスト実行
 
 ```bash
-npm test
+pnpm test
 ```
 
 ### Organization 別実行
 
 ```bash
 # dev organization のみ
-npm run test:dev
+pnpm run test:dev
 
 # staging organization のみ
-npm run test:staging
+pnpm run test:staging
 
 # production organization のみ
-npm run test:production
+pnpm run test:production
 ```
 
 ### デバッグモード
 
 ```bash
 # ヘッドありモード
-npm run test:headed
+pnpm run test:headed
 
 # デバッグモード（ステップ実行）
-npm run test:debug
+pnpm run test:debug
 
 # UI モード（対話的デバッグ）
-npm run test:ui
+pnpm run test:ui
 ```
 
 ### テスト結果確認
 
 ```bash
 # レポート表示
-npm run report
+pnpm run report
 ```
 
 ## Organization Fixture の仕組み
