@@ -127,6 +127,11 @@ jobs:
             sleep 2
           done
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: e2e-tests/package.json
+
       - name: Install Node.js
         uses: actions/setup-node@v6
         with:
@@ -135,12 +140,12 @@ jobs:
       - name: Install Playwright
         working-directory: e2e-tests
         run: |
-          npm install
-          npx playwright install --with-deps chromium
+          pnpm install
+          pnpm exec playwright install --with-deps chromium
 
       - name: Run Playwright E2E Tests
         working-directory: e2e-tests
-        run: npx playwright test
+        run: pnpm exec playwright test
 
       - name: Upload test results
         if: failure()
