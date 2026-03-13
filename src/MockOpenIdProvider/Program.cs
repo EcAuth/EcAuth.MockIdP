@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using MockOpenIdProvider.Data;
+using MockOpenIdProvider.Data.Seeders;
 using MockOpenIdProvider.Models;
 using MockOpenIdProvider.Services;
 using MockOpenIdProvider.Middlewares;
@@ -23,6 +25,14 @@ builder.Services.AddDbContext<IdpDbContext>(options =>
     // これにより、マイグレーション内でDbContextを作成する既存のパターンが動作します
     options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.MigrationsUserTransactionWarning));
 });
+
+// データベース初期化（シーダー）
+builder.Services.AddScoped<IDbSeeder>(sp =>
+    new EnvironmentClientUserSeeder("MOCKIDP_STAGING", "staging", 10));
+builder.Services.AddScoped<IDbSeeder>(sp =>
+    new EnvironmentClientUserSeeder("MOCKIDP_PRODUCTION", "production", 20));
+builder.Services.AddScoped<DbInitializer>();
+
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -60,5 +70,31 @@ app.MapHealthChecks("/healthz/live", new Microsoft.AspNetCore.Diagnostics.Health
 {
     Predicate = _ => false  // データベースチェック不要（プロセス生存のみ）
 });
+
+// データベース初期化（シーダー実行）
+using (var scope = app.Services.CreateScope())
+{
+    var dbInitializer = scope.ServiceProvider.GetRequiredService<DbInitializer>();
+    var context = scope.ServiceProvider.GetRequiredService<IdpDbContext>();
+    var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+    try
+    {
+        await dbInitializer.InitializeAsync(context, configuration);
+    }
+    catch (Exception ex)
+    {
+        if (app.Environment.IsProduction())
+        {
+            logger.LogError(ex, "DbInitializer failed. Continuing startup in Production environment.");
+        }
+        else
+        {
+            logger.LogError(ex, "DbInitializer failed. Stopping application.");
+            throw;
+        }
+    }
+}
 
 app.Run();

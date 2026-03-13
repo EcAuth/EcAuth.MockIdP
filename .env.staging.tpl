@@ -11,7 +11,7 @@ ASPNETCORE_URLS=http://+:8080
 # Default Organization (if not specified in request)
 DEFAULT_ORGANIZATION=staging
 
-# Migration Seed Data - Staging Client & User
+# DbInitializer Seed Data - Staging Client & User
 MOCKIDP_STAGING_CLIENT_ID=op://EcAuth/mockidp-staging/default_client_id
 MOCKIDP_STAGING_CLIENT_SECRET=op://EcAuth/mockidp-staging/default_client_secret
 MOCKIDP_STAGING_CLIENT_NAME=StagingClient

@@ -67,13 +67,6 @@ jobs:
         MOCK_IDP_FEDERATE_CLIENT_SECRET: ${{ secrets.MOCK_IDP_FEDERATE_CLIENT_SECRET || 'federate-client-secret' }}
         MOCK_IDP_FEDERATE_CLIENT_NAME: ${{ vars.MOCK_IDP_FEDERATE_CLIENT_NAME || 'FederateClient' }}
         MOCK_IDP_FEDERATE_USER_EMAIL: ${{ vars.MOCK_IDP_FEDERATE_USER_EMAIL || 'federateuser@example.com' }}
-        # Staging 用ダミー値（dev 環境のマイグレーション実行に必要）
-        MOCKIDP_STAGING_CLIENT_ID: staging-dummy-clientid
-        MOCKIDP_STAGING_CLIENT_SECRET: staging-dummy-secret
-        MOCKIDP_STAGING_CLIENT_NAME: StagingDummyClient
-        MOCKIDP_STAGING_REDIRECT_URI: https://localhost:8081/auth/callback
-        MOCKIDP_STAGING_USER_EMAIL: staging-dummy@example.com
-        MOCKIDP_STAGING_USER_PASSWORD: dummy-password
       run: |
         cd src/MockOpenIdProvider
         dotnet ef database update --verbose
@@ -91,17 +84,9 @@ jobs:
         SQL_DATABASE: op://EcAuth/ecauth-dev-sql/database
         SQL_USERNAME: op://EcAuth/ecauth-dev-sql/username
         SQL_PASSWORD: op://EcAuth/ecauth-dev-sql/password
-        # Staging client/user credentials
-        MOCKIDP_STAGING_CLIENT_ID: op://EcAuth/mockidp-staging/default_client_id
-        MOCKIDP_STAGING_CLIENT_SECRET: op://EcAuth/mockidp-staging/default_client_secret
-        MOCKIDP_STAGING_USER_EMAIL: op://EcAuth/mockidp-staging/default_user_email
-        MOCKIDP_STAGING_USER_PASSWORD: op://EcAuth/mockidp-staging/default_user_password
-        MOCKIDP_STAGING_REDIRECT_URI: op://EcAuth/mockidp-staging/redirect_uri
 
     - name: Run database migrations (staging)
       if: github.event.inputs.environment == 'staging'
-      env:
-        MOCKIDP_STAGING_CLIENT_NAME: StagingClient
       run: |
         # 接続文字列を組み立て
         export ConnectionStrings__MockIdpDbContext="Server=tcp:${SQL_HOST},1433;Initial Catalog=${SQL_DATABASE};User ID=${SQL_USERNAME};Password=${SQL_PASSWORD};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
