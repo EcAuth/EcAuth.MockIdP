@@ -91,8 +91,39 @@ public class EnvironmentClientUserSeeder : IDbSeeder
 
         if (existing != null)
         {
-            logger.LogInformation("Client {ClientId} already exists for {TenantName}, skipping",
-                clientId, organization.TenantName);
+            var updated = false;
+
+            if (existing.ClientSecret != clientSecret)
+            {
+                existing.ClientSecret = clientSecret;
+                updated = true;
+            }
+
+            var desiredName = clientName ?? $"{organization.TenantName}Client";
+            if (existing.ClientName != desiredName)
+            {
+                existing.ClientName = desiredName;
+                updated = true;
+            }
+
+            if (existing.RedirectUri != redirectUri)
+            {
+                existing.RedirectUri = redirectUri;
+                updated = true;
+            }
+
+            if (updated)
+            {
+                await context.SaveChangesAsync();
+                logger.LogInformation("Updated Client {ClientId} for {TenantName}",
+                    clientId, organization.TenantName);
+            }
+            else
+            {
+                logger.LogInformation("Client {ClientId} already up-to-date for {TenantName}",
+                    clientId, organization.TenantName);
+            }
+
             return existing;
         }
 
@@ -131,16 +162,41 @@ public class EnvironmentClientUserSeeder : IDbSeeder
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(u => u.Email == userEmail && u.OrganizationId == organization.Id);
 
+        var passwordHasher = new PasswordHasher<MockIdpUser>();
+
         if (existing != null)
         {
-            logger.LogInformation("User {Email} already exists for {TenantName}, skipping",
-                userEmail, organization.TenantName);
+            var updated = false;
+
+            var verifyResult = passwordHasher.VerifyHashedPassword(existing, existing.Password!, userPassword);
+            if (verifyResult == PasswordVerificationResult.Failed)
+            {
+                existing.Password = passwordHasher.HashPassword(existing, userPassword);
+                updated = true;
+            }
+
+            if (existing.ClientId != client.Id)
+            {
+                existing.ClientId = client.Id;
+                updated = true;
+            }
+
+            if (updated)
+            {
+                await context.SaveChangesAsync();
+                logger.LogInformation("Updated User for {TenantName}",
+                    organization.TenantName);
+            }
+            else
+            {
+                logger.LogInformation("User already up-to-date for {TenantName}",
+                    organization.TenantName);
+            }
+
             return;
         }
 
-        var passwordHasher = new PasswordHasher<MockIdpUser>();
-        var tempUser = new MockIdpUser { Email = userEmail };
-        var hashedPassword = passwordHasher.HashPassword(tempUser, userPassword);
+        var hashedPassword = passwordHasher.HashPassword(new MockIdpUser { Email = userEmail }, userPassword);
 
         var user = new MockIdpUser
         {
