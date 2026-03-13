@@ -209,7 +209,7 @@ public class EnvironmentClientUserSeeder : IDbSeeder
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        logger.LogInformation("Created User {Email} for {TenantName}",
-            userEmail, organization.TenantName);
+        logger.LogInformation("Created User for {TenantName}",
+            organization.TenantName);
     }
 }
