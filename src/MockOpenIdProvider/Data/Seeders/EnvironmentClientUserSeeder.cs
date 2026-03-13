@@ -43,14 +43,14 @@ public class EnvironmentClientUserSeeder : IDbSeeder
         var userEmail = configuration[$"{_envPrefix}_USER_EMAIL"];
         var userPassword = configuration[$"{_envPrefix}_USER_PASSWORD"];
 
-        if (string.IsNullOrEmpty(clientId))
+        if (string.IsNullOrWhiteSpace(clientId))
         {
             logger.LogInformation("Skipped {Tenant} - {Prefix}_CLIENT_ID not configured", _tenantName, _envPrefix);
             return;
         }
 
-        if (string.IsNullOrEmpty(clientSecret) || string.IsNullOrEmpty(redirectUri)
-            || string.IsNullOrEmpty(userEmail) || string.IsNullOrEmpty(userPassword))
+        if (string.IsNullOrWhiteSpace(clientSecret) || string.IsNullOrWhiteSpace(redirectUri)
+            || string.IsNullOrWhiteSpace(userEmail) || string.IsNullOrWhiteSpace(userPassword))
         {
             logger.LogInformation("Skipped {Tenant} - required environment variables not fully configured", _tenantName);
             return;
