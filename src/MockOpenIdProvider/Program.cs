@@ -85,14 +85,14 @@ using (var scope = app.Services.CreateScope())
     }
     catch (Exception ex)
     {
-        if (app.Environment.IsDevelopment())
+        if (app.Environment.IsProduction())
         {
-            logger.LogError(ex, "DbInitializer failed. Stopping application in Development environment.");
-            throw;
+            logger.LogError(ex, "DbInitializer failed. Continuing startup in Production environment.");
         }
         else
         {
-            logger.LogError(ex, "DbInitializer failed. Continuing startup in Production environment.");
+            logger.LogError(ex, "DbInitializer failed. Stopping application.");
+            throw;
         }
     }
 }
