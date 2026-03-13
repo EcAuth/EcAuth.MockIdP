@@ -44,8 +44,7 @@ public class DbInitializer
     {
         if (!await CanConnectAsync(context))
         {
-            _logger.LogWarning("DbInitializer: Database is not available. Skipping seed.");
-            return;
+            throw new InvalidOperationException("DbInitializer: Database is not available. Cannot run seed.");
         }
 
         var appliedMigrations = await GetAppliedMigrationsAsync(context);
