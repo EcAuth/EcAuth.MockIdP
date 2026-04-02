@@ -96,7 +96,7 @@ export const test = base.extend<OrganizationFixture>({
    */
   redirectUri: async ({}, use) => {
     const redirectUri =
-      process.env.REDIRECT_URI || 'https://localhost:8081/auth/callback';
+      process.env.REDIRECT_URI || 'https://localhost:8081/v1/auth/callback';
     await use(redirectUri);
   },
 

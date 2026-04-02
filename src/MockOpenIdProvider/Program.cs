@@ -28,6 +28,8 @@ builder.Services.AddDbContext<IdpDbContext>(options =>
 
 // データベース初期化（シーダー）
 builder.Services.AddScoped<IDbSeeder>(sp =>
+    new EnvironmentClientUserSeeder("MOCKIDP_DEV", "dev", 5));
+builder.Services.AddScoped<IDbSeeder>(sp =>
     new EnvironmentClientUserSeeder("MOCKIDP_STAGING", "staging", 10));
 builder.Services.AddScoped<IDbSeeder>(sp =>
     new EnvironmentClientUserSeeder("MOCKIDP_PRODUCTION", "production", 20));
