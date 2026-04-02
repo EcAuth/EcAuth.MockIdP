@@ -78,7 +78,7 @@ jobs:
       with:
         export-env: true
       env:
-        OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_NONPROD }}
+        OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
         # Database credentials (ecauth-dev-sql は MockIdP も使用)
         SQL_HOST: op://EcAuth/ecauth-dev-sql/hostname
         SQL_DATABASE: op://EcAuth/ecauth-dev-sql/database
@@ -100,7 +100,7 @@ jobs:
       with:
         export-env: true
       env:
-        OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_PROD }}
+        OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
         SQL_HOST: op://EcAuth/ecauth-prod-sql/hostname
         SQL_DATABASE: op://EcAuth/ecauth-prod-sql/database
         SQL_USERNAME: op://EcAuth/ecauth-prod-sql/username
