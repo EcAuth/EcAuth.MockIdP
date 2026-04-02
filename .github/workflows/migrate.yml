@@ -87,6 +87,17 @@ jobs:
 
     - name: Run database migrations (staging)
       if: github.event.inputs.environment == 'staging'
+      env:
+        MOCK_IDP_DEFAULT_CLIENT_ID: ${{ vars.MOCK_IDP_DEFAULT_CLIENT_ID || 'mockclientid' }}
+        MOCK_IDP_DEFAULT_CLIENT_SECRET: ${{ secrets.MOCK_IDP_DEFAULT_CLIENT_SECRET || 'mock-client-secret' }}
+        MOCK_IDP_DEFAULT_CLIENT_NAME: ${{ vars.MOCK_IDP_DEFAULT_CLIENT_NAME || 'MockClient' }}
+        MOCK_IDP_DEFAULT_USER_EMAIL: ${{ vars.MOCK_IDP_DEFAULT_USER_EMAIL || 'defaultuser@example.com' }}
+        MOCK_IDP_DEFAULT_USER_PASSWORD: ${{ secrets.MOCK_IDP_DEFAULT_USER_PASSWORD || 'password' }}
+        DEFAULT_ORGANIZATION_REDIRECT_URI: ${{ vars.DEFAULT_ORGANIZATION_REDIRECT_URI || 'https://localhost:8081/v1/auth/callback' }}
+        MOCK_IDP_FEDERATE_CLIENT_ID: ${{ vars.MOCK_IDP_FEDERATE_CLIENT_ID || 'federateclientid' }}
+        MOCK_IDP_FEDERATE_CLIENT_SECRET: ${{ secrets.MOCK_IDP_FEDERATE_CLIENT_SECRET || 'federate-client-secret' }}
+        MOCK_IDP_FEDERATE_CLIENT_NAME: ${{ vars.MOCK_IDP_FEDERATE_CLIENT_NAME || 'FederateClient' }}
+        MOCK_IDP_FEDERATE_USER_EMAIL: ${{ vars.MOCK_IDP_FEDERATE_USER_EMAIL || 'federateuser@example.com' }}
       run: |
         # 接続文字列を組み立て
         export ConnectionStrings__MockIdpDbContext="Server=tcp:${SQL_HOST},1433;Initial Catalog=${SQL_DATABASE};User ID=${SQL_USERNAME};Password=${SQL_PASSWORD};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
@@ -108,6 +119,17 @@ jobs:
 
     - name: Run database migrations (production)
       if: github.event.inputs.environment == 'production'
+      env:
+        MOCK_IDP_DEFAULT_CLIENT_ID: ${{ vars.MOCK_IDP_DEFAULT_CLIENT_ID || 'mockclientid' }}
+        MOCK_IDP_DEFAULT_CLIENT_SECRET: ${{ secrets.MOCK_IDP_DEFAULT_CLIENT_SECRET || 'mock-client-secret' }}
+        MOCK_IDP_DEFAULT_CLIENT_NAME: ${{ vars.MOCK_IDP_DEFAULT_CLIENT_NAME || 'MockClient' }}
+        MOCK_IDP_DEFAULT_USER_EMAIL: ${{ vars.MOCK_IDP_DEFAULT_USER_EMAIL || 'defaultuser@example.com' }}
+        MOCK_IDP_DEFAULT_USER_PASSWORD: ${{ secrets.MOCK_IDP_DEFAULT_USER_PASSWORD || 'password' }}
+        DEFAULT_ORGANIZATION_REDIRECT_URI: ${{ vars.DEFAULT_ORGANIZATION_REDIRECT_URI || 'https://localhost:8081/v1/auth/callback' }}
+        MOCK_IDP_FEDERATE_CLIENT_ID: ${{ vars.MOCK_IDP_FEDERATE_CLIENT_ID || 'federateclientid' }}
+        MOCK_IDP_FEDERATE_CLIENT_SECRET: ${{ secrets.MOCK_IDP_FEDERATE_CLIENT_SECRET || 'federate-client-secret' }}
+        MOCK_IDP_FEDERATE_CLIENT_NAME: ${{ vars.MOCK_IDP_FEDERATE_CLIENT_NAME || 'FederateClient' }}
+        MOCK_IDP_FEDERATE_USER_EMAIL: ${{ vars.MOCK_IDP_FEDERATE_USER_EMAIL || 'federateuser@example.com' }}
       run: |
         # 接続文字列を組み立て
         export ConnectionStrings__MockIdpDbContext="Server=tcp:${SQL_HOST},1433;Initial Catalog=${SQL_DATABASE};User ID=${SQL_USERNAME};Password=${SQL_PASSWORD};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
