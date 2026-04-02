@@ -108,7 +108,7 @@ jobs:
       - name: Generate development HTTPS certificate
         run: |
           mkdir -p ${HOME}/.aspnet/https
-          dotnet dev-certs https -ep ${HOME}/.aspnet/https/aspnetapp.pfx -p changeit --trust
+          dotnet dev-certs https -ep ${HOME}/.aspnet/https/aspnetapp.pfx -p changeit
           echo "ASPNETCORE_Kestrel__Certificates__Default__Path=${HOME}/.aspnet/https/aspnetapp.pfx" >> $GITHUB_ENV
           echo "ASPNETCORE_Kestrel__Certificates__Default__Password=changeit" >> $GITHUB_ENV
 
