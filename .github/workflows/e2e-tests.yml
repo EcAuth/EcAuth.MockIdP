@@ -29,7 +29,7 @@ jobs:
       MOCK_IDP_DEFAULT_CLIENT_NAME: MockClient
       MOCK_IDP_DEFAULT_USER_EMAIL: defaultuser@example.com
       MOCK_IDP_DEFAULT_USER_PASSWORD: password
-      DEFAULT_ORGANIZATION_REDIRECT_URI: https://localhost:8081/auth/callback
+      DEFAULT_ORGANIZATION_REDIRECT_URI: https://localhost:8081/v1/auth/callback
 
       # Migration Seed Data - Federate Client & User
       MOCK_IDP_FEDERATE_CLIENT_ID: federateclientid
@@ -41,7 +41,7 @@ jobs:
       MOCKIDP_STAGING_CLIENT_ID: staging-mockclientid
       MOCKIDP_STAGING_CLIENT_SECRET: staging-mock-client-secret
       MOCKIDP_STAGING_CLIENT_NAME: StagingClient
-      MOCKIDP_STAGING_REDIRECT_URI: https://localhost:8081/auth/callback
+      MOCKIDP_STAGING_REDIRECT_URI: https://localhost:8081/v1/auth/callback
       MOCKIDP_STAGING_USER_EMAIL: staginguser@example.com
       MOCKIDP_STAGING_USER_PASSWORD: password
 
@@ -49,7 +49,7 @@ jobs:
       MOCK_IDP_BASE_URL: https://localhost:9091
       CLIENT_ID: mockclientid
       CLIENT_SECRET: mock-client-secret
-      REDIRECT_URI: https://localhost:8081/auth/callback
+      REDIRECT_URI: https://localhost:8081/v1/auth/callback
       TEST_USER_EMAIL: defaultuser@example.com
       TEST_USER_PASSWORD: password
 

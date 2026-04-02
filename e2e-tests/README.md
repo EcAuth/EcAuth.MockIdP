@@ -48,7 +48,7 @@ cp .env.example .env
 MOCK_IDP_BASE_URL=https://localhost:9091
 CLIENT_ID=mockclientid
 CLIENT_SECRET=mock-client-secret
-REDIRECT_URI=https://localhost:8081/auth/callback
+REDIRECT_URI=https://localhost:8081/v1/auth/callback
 TEST_USER_EMAIL=defaultuser@example.com
 TEST_USER_PASSWORD=password
 ```
@@ -58,7 +58,7 @@ TEST_USER_PASSWORD=password
 MOCK_IDP_BASE_URL=https://mock-idp.azurecontainerapps.io
 CLIENT_ID=mockclientid
 CLIENT_SECRET=mock-client-secret
-REDIRECT_URI=https://localhost:8081/auth/callback
+REDIRECT_URI=https://localhost:8081/v1/auth/callback
 TEST_USER_EMAIL=defaultuser@example.com
 TEST_USER_PASSWORD=password
 ```
