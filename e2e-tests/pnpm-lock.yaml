@@ -15,8 +15,8 @@ importers:
         specifier: ^25.0.3
         version: 25.3.5
       dotenv:
-        specifier: ^17.2.3
-        version: 17.3.1
+        specifier: ^17.4.1
+        version: 17.4.1
 
 packages:
 
@@ -28,8 +28,8 @@ packages:
   '@types/node@25.3.5':
     resolution: {integrity: sha512-oX8xrhvpiyRCQkG1MFchB09f+cXftgIXb3a7UUa4Y3wpmZPw5tyZGTLWhlESOLq1Rq6oDlc8npVU2/9xiCuXMA==}
 
-  dotenv@17.3.1:
-    resolution: {integrity: sha512-IO8C/dzEb6O3F9/twg6ZLXz164a2fhTnEWb95H23Dm4OuN+92NmEAlTrupP9VW6Jm3sO26tQlqyvyi4CsnY9GA==}
+  dotenv@17.4.1:
+    resolution: {integrity: sha512-k8DaKGP6r1G30Lx8V4+pCsLzKr8vLmV2paqEj1Y55GdAgJuIqpRp5FfajGF8KtwMxCz9qJc6wUIJnm053d/WCw==}
     engines: {node: '>=12'}
 
   fsevents@2.3.2:
@@ -60,7 +60,7 @@ snapshots:
     dependencies:
       undici-types: 7.18.2
 
-  dotenv@17.3.1: {}
+  dotenv@17.4.1: {}
 
   fsevents@2.3.2:
     optional: true
