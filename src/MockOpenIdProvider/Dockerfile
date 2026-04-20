@@ -1,13 +1,13 @@
 # デバッグ コンテナーをカスタマイズする方法と、Visual Studio がこの Dockerfile を使用してより高速なデバッグのためにイメージをビルドする方法については、https://aka.ms/customizecontainer をご覧ください。
 
 # このステージは、VS から高速モードで実行するときに使用されます (デバッグ構成の既定値)
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
 
 # 開発環境用の証明書設定
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS dev-certs
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS dev-certs
 RUN mkdir -p /https && \
     dotnet dev-certs https -ep /https/aspnetapp.pfx -p changeit
 
@@ -17,7 +17,7 @@ USER $APP_UID
 
 
 # このステージは、サービス プロジェクトのビルドに使用されます
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 ARG GITHUB_TOKEN
 WORKDIR /src
@@ -59,7 +59,7 @@ RUN mkdir -p /certs
 RUN mkcert -cert-file /certs/localhost.crt -key-file /certs/localhost.key localhost 127.0.0.1 ::1
 
 # Linux環境用: 証明書をPFX形式に変換するステージ
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS pfx-converter
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS pfx-converter
 WORKDIR /certs
 COPY --from=cert-generator /certs/localhost.crt /certs/localhost.key ./
 RUN apt-get update && apt-get install -y openssl && \
