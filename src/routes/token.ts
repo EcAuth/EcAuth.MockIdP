@@ -66,8 +66,13 @@ export async function handleToken(c: Context<AppBindings>) {
     // 認可要求時の redirect_uri と一致することを確認する（RFC 6749 §4.1.3）。
     if (claims.ruri !== redirectUri) return oauthError(c, 'invalid_grant');
 
-    // 単回使用の担保。.NET 版の authorization_code.used 相当。
-    // KV は結果整合のため厳密な排他ではないが、モック用途では十分。
+    // 使用済み判定。.NET 版の authorization_code.used 相当。
+    //
+    // これは「一度使ったコードを後から使い回す」逐次的な再利用を防ぐもので、
+    // 厳密な単回使用の保証ではない。Cloudflare KV は結果整合であり、
+    // 下の get → put は原子的な read-modify-write ではないため、同一コードを
+    // 別エッジから同時に交換された場合は複数が成功しうる。
+    // 厳密な排他が必要になったら Durable Objects へ移すこと。
     if (await c.env.USED_CODES.get(claims.jti)) return oauthError(c, 'invalid_grant');
     await c.env.USED_CODES.put(claims.jti, '1', { expirationTtl: CODE_TTL_SECONDS });
 

@@ -73,13 +73,15 @@ TEST_USER_PASSWORD=password
 ### 2. 依存関係インストール
 
 pnpm ワークスペースなので、**リポジトリのルート**で 1 回実行すれば足ります。
+`cd` せずに済むよう `--dir` を使います。
 
 ```bash
-cd ..
-pnpm install
+pnpm --dir .. install
 ```
 
 ### 3. Playwright ブラウザのインストール
+
+Playwright は `e2e-tests` の依存なので、**このディレクトリで**実行します。
 
 ```bash
 pnpm exec playwright install --with-deps chromium
@@ -87,11 +89,14 @@ pnpm exec playwright install --with-deps chromium
 
 ### 4. MockIdP の起動
 
-ローカルに向ける場合は、別ターミナルでルートから Worker を起動しておきます。
+ローカルに向ける場合は、別ターミナルで Worker を起動しておきます。
 
 ```bash
-pnpm dev
+pnpm --dir .. dev
 ```
+
+以降のコマンドはすべて `e2e-tests` ディレクトリで実行してください。
+リポジトリルートの `pnpm test` は Worker のユニットテスト（Vitest）が動きます。
 
 ## テスト実行
 

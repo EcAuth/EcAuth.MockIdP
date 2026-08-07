@@ -18,7 +18,7 @@ EcAuth Identity Provider の E2E テスト専用に作られたモック OpenID 
 
 ## アーキテクチャ
 
-```
+```text
 リクエスト
   ↓
 テナント解決ミドルウェア (?org= → X-Organization → 既定 dev)
@@ -28,11 +28,21 @@ EcAuth Identity Provider の E2E テスト専用に作られたモック OpenID 
 各エンドポイント
   ↓
 HS256 署名トークン（永続化なし）
-  + KV (USED_CODES): 認可コードの単回使用マーカーのみ
+  + KV (USED_CODES): 使用済み認可コードのマーカーのみ
 ```
 
-Organization ごとに Client 1 件・User 1 件を持つ構成で、すべて設定値から解決します。
-テーブルもマイグレーションも存在しません。
+Organization ごとに **User 1 人・Client 1〜2 件**（既定 + 任意の federate）を持つ構成で、
+すべて設定値から解決します。テーブルもマイグレーションも存在しません。
+
+### 認可コードの再利用防止について
+
+使用済みの認可コードは KV に `jti` を TTL 付きで記録して弾きます。これにより
+**逐次的な再利用**（一度使ったコードを後から使い回す）は防げます。
+
+一方 Cloudflare KV は結果整合で、`get` → `put` は原子的な read-modify-write では
+ありません。そのため**同一コードを別エッジから同時に交換された場合、複数が成功しうる**
+という制約があります。厳密な排他が必要になったら Durable Objects へ移す必要があります
+が、モック IdP の用途（EcAuth も E2E も 1 回しか交換しない）では過剰と判断しています。
 
 ## エンドポイント
 
@@ -47,7 +57,7 @@ Organization ごとに Client 1 件・User 1 件を持つ構成で、すべて�
 
 ### 認可エンドポイント
 
-```
+```http
 GET /authorization?org=dev
   &response_type=code
   &client_id={client_id}
@@ -62,7 +72,7 @@ Authorization: Basic base64(email:password)
 
 ### トークンエンドポイント
 
-```
+```http
 POST /token?org=dev
 Content-Type: application/x-www-form-urlencoded
 
@@ -73,7 +83,7 @@ grant_type=authorization_code
 &client_secret={client_secret}
 ```
 
-```
+```http
 POST /token?org=dev
 Content-Type: application/x-www-form-urlencoded
 
@@ -85,7 +95,7 @@ grant_type=refresh_token
 
 ### UserInfo エンドポイント
 
-```
+```http
 GET /userinfo?org=dev
 Authorization: Bearer {access_token}
 ```
@@ -233,7 +243,7 @@ Cloudflare の無料枠内で運用でき、**月額 0 円**です。
 | リソース | 無料枠 | 用途 |
 |---|---|---|
 | Workers | 10 万リクエスト/日、CPU 10ms/リクエスト | 本体 |
-| Workers KV | 10 万 reads/日、1,000 writes/日 | 認可コードの単回使用マーカー |
+| Workers KV | 10 万 reads/日、1,000 writes/日 | 使用済み認可コードのマーカー |
 
 認可コード 1 回の引き換えにつき KV への書き込みが 1 回発生します。
 

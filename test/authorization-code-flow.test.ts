@@ -72,6 +72,28 @@ describe('認可コードフロー', () => {
     expect(location.origin + location.pathname).toBe(DEV.redirectUri);
   });
 
+  it('state と nonce を指定しなければリダイレクト先にも付与されない', async () => {
+    // EcAuth は nonce を送らないため、空の nonce= が付くと外部 IdP 側の
+    // 挙動として不自然になる。.NET 版は常に付与していたが Workers 版では付けない。
+    const params = new URLSearchParams({
+      org: DEV.org,
+      client_id: DEV.clientId,
+      redirect_uri: DEV.redirectUri,
+      response_type: 'code',
+      scope: 'openid',
+    });
+
+    const response = await request(`/authorization?${params.toString()}`, {
+      headers: { Authorization: basicAuth(DEV.email, DEV.password) },
+    });
+
+    expect(response.status).toBe(302);
+    const location = new URL(response.headers.get('location') ?? '');
+    expect(location.searchParams.has('state')).toBe(false);
+    expect(location.searchParams.has('nonce')).toBe(false);
+    expect(location.searchParams.get('code')).toBeTruthy();
+  });
+
   it('sub は同じユーザーなら毎回同じ値になる', async () => {
     const first = await exchangeCode(DEV, await getAuthorizationCode(DEV));
     const second = await exchangeCode(DEV, await getAuthorizationCode(DEV));

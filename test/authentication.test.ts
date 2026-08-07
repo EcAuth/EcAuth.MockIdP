@@ -94,12 +94,15 @@ describe('トークンエンドポイントのクライアント認証', () => {
       client_secret: 'wrong-secret',
     });
 
+    // .NET 版からの契約: エラーでも HTTP 200 + {"error": ...} を返す
+    expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ error: 'invalid_client' });
   });
 
   it('client_id / client_secret が無ければ invalid_request', async () => {
     const response = await postToken(DEV.org, { grant_type: 'authorization_code' });
 
+    expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ error: 'invalid_request' });
   });
 
@@ -110,6 +113,7 @@ describe('トークンエンドポイントのクライアント認証', () => {
       client_secret: DEV.clientSecret,
     });
 
+    expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ error: 'unsupported_grant_type' });
   });
 
@@ -122,6 +126,7 @@ describe('トークンエンドポイントのクライアント認証', () => {
       client_secret: DEV.clientSecret,
     });
 
+    expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ error: 'invalid_grant' });
   });
 });
@@ -130,6 +135,7 @@ describe('userinfo エンドポイント', () => {
   it('Authorization ヘッダーが無ければ invalid_request', async () => {
     const response = await request(`/userinfo?org=${DEV.org}`);
 
+    expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ error: 'invalid_request' });
   });
 
@@ -138,6 +144,7 @@ describe('userinfo エンドポイント', () => {
       headers: { Authorization: 'Bearer bogus-token' },
     });
 
+    expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ error: 'invalid_token' });
   });
 
@@ -148,6 +155,7 @@ describe('userinfo エンドポイント', () => {
       headers: { Authorization: `Bearer ${code}` },
     });
 
+    expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ error: 'invalid_token' });
   });
 });

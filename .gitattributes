@@ -1,0 +1,10 @@
+# 改行コードは LF に統一する（CLAUDE.md のコーディング規約）。
+# e2e-tests/ 配下が CRLF で混在していたため、正規化のうえ再発を防ぐ。
+* text=auto eol=lf
+
+# バイナリ扱い
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.pdf binary

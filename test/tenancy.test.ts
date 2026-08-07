@@ -83,7 +83,23 @@ describe('テナント分離', () => {
     expect(await response.json()).toEqual({ error: 'invalid_token' });
   });
 
-  it('dev の client_secret では staging のトークン要求は通らない', async () => {
+  it('staging のクライアントに dev の client_secret を使うと通らない', async () => {
+    const stagingCode = await getAuthorizationCode(STAGING);
+
+    // client_id は staging の登録済みのものを使う。dev の client_id を送ると
+    // 「未知の client_id」で弾かれてしまい、secret の検証にならない。
+    const response = await postToken(STAGING.org, {
+      grant_type: 'authorization_code',
+      code: stagingCode,
+      redirect_uri: STAGING.redirectUri,
+      client_id: STAGING.clientId,
+      client_secret: DEV.clientSecret,
+    });
+
+    expect(await response.json()).toEqual({ error: 'invalid_client' });
+  });
+
+  it('dev の client_id は staging には登録されていない', async () => {
     const stagingCode = await getAuthorizationCode(STAGING);
 
     const response = await postToken(STAGING.org, {

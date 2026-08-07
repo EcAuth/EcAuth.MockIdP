@@ -11,5 +11,5 @@
 # シークレット（.env.workers.tpl）とは別物。混ぜると Cloudflare の API トークンを
 # Worker Secret として公開してしまうので絶対に統合しないこと。
 
-CLOUDFLARE_API_TOKEN=op://EcAuth/cloudflare-credentials/CLOUDFLARE_API_TOKEN
 CLOUDFLARE_ACCOUNT_ID=op://EcAuth/cloudflare-credentials/CLOUDFLARE_ACCOUNT_ID
+CLOUDFLARE_API_TOKEN=op://EcAuth/cloudflare-credentials/CLOUDFLARE_API_TOKEN
