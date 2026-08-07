@@ -1,0 +1,34 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mock-openid-provider",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+
+  // workers.dev サブドメインで公開する（カスタムドメインは使わない）。
+  "workers_dev": true,
+
+  "observability": {
+    "enabled": true
+  },
+
+  // 使用済み認可コードを記録するための KV。
+  // 値はマーカー（jti → "1"）のみで、機密情報は保存しない。
+  // 結果整合のため単回使用の保証にはならない（README 参照）。
+  //
+  // セットアップ手順（初回のみ、README も参照）:
+  //   pnpm exec wrangler kv namespace create USED_CODES
+  // 出力された id を下記 "id" に貼り付けてコミットする。
+  // KV namespace ID は秘匿情報ではないため、公開リポジトリに含めて問題ない。
+  "kv_namespaces": [
+    {
+      "binding": "USED_CODES",
+      "id": "8cb193d952fb4aaa80277a85f691280c"
+    }
+  ]
+
+  // テナント設定（MOCKIDP_{DEV,STAGING,PRODUCTION}_*）と TOKEN_SIGNING_KEY は
+  // すべて Workers Secret として注入する。ここには書かない。
+  // 理由: 本リポジトリは公開されており、staging/production の redirect_uri は
+  // EcAuth のデプロイ先 URL を含むため（ルート CLAUDE.md の方針）。
+  // 投入方法は README の「シークレットの投入」を参照。
+}

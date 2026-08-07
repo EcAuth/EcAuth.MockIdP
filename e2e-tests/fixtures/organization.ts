@@ -63,7 +63,8 @@ export const test = base.extend<OrganizationFixture>({
    * ベースURLを取得（環境変数から）
    */
   baseURL: async ({}, use) => {
-    const baseURL = process.env.MOCK_IDP_BASE_URL || 'https://localhost:9091';
+    // 既定値は `wrangler dev` のローカルアドレス
+    const baseURL = process.env.MOCK_IDP_BASE_URL || 'http://127.0.0.1:8787';
     await use(baseURL);
   },
 

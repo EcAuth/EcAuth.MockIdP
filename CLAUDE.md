@@ -5,203 +5,241 @@
 
 ## プロジェクト概要
 
-EcAuth.MockIdP は、EcAuth Identity Provider の E2E テスト用に設計された Mock OpenID Connect Provider です。制御された環境で外部 IdP（Google、LINE、Facebook など）をシミュレートします。
+EcAuth.MockIdP は、EcAuth Identity Provider の E2E テスト用に設計された Mock OpenID Connect
+Provider です。制御された環境で外部 IdP（Google、LINE、Facebook など）をシミュレートします。
 
 **目的**:
+
 - EcAuth IdentityProvider の E2E テスト
 - 開発・ステージング環境でのテスト
 - 本番データからの分離
-- コスト最適化された Azure デプロイ（月額約¥800）
+- 運用コストゼロ（Cloudflare Workers 無料枠）
 
-## 関連リポジトリ
+**v2.0.0 で ASP.NET Core + Azure SQL Database から Cloudflare Workers + TypeScript へ全面移行しました。**
+旧実装は `v1-dotnet-final` タグで参照できます。
 
-| リポジトリ                                                               | 説明                                    |
-|--------------------------------------------------------------------------|-----------------------------------------|
-| [EcAuth](https://github.com/EcAuth/EcAuth)                               | IdentityProvider メインアプリケーション |
-| [EcAuth.IdpUtilities](https://github.com/EcAuth/EcAuth.IdpUtilities)     | 共通ユーティリティライブラリ            |
-| [ecauth-infrastructure](https://github.com/EcAuth/ecauth-infrastructure) | IaC（Terraform + Ansible）              |
-| [EcAuthDocs](https://github.com/EcAuth/EcAuthDocs)                       | 設計ドキュメント                        |
+## 技術スタック
+
+- **ランタイム**: Cloudflare Workers
+- **言語**: TypeScript 7（`tsc --noEmit` で型検査のみ。ビルドは wrangler/esbuild）
+- **フレームワーク**: Hono
+- **ストレージ**: Workers KV（認可コードの単回使用マーカーのみ）
+- **テスト**: Vitest + `@cloudflare/vitest-pool-workers`（ユニット）、Playwright（E2E）
+- **パッケージマネージャ**: pnpm（ワークスペース構成）
+
+## 設計の要点
+
+### ステートレス設計
+
+認可コード・アクセストークン・リフレッシュトークンはすべて **HS256 署名付きの自己完結トークン**
+（JWT 形式）で、データベースに保存しません。必要な情報はクレームに埋め込みます。
+
+```text
+typ  トークン種別 (code / at / rt)
+org  発行元テナント        ← テナントをまたいだ利用を防ぐ
+cid  client_id
+sub  ユーザー識別子
+jti  トークン固有 ID       ← 認可コードの単回使用判定に使う
+iat / exp
+ruri 認可時の redirect_uri（code のみ）
+nonce                      （code のみ）
+```
+
+**永続化が必要なのは「認可コードが使用済みかどうか」だけ**で、これは KV に `jti` を TTL 付きで
+書き込むことで実現しています。
+
+**これは単回使用の保証ではありません。** Cloudflare KV は結果整合で、書き込みは同一
+ロケーションでも即時可視とは限らず、他のロケーションへは 60 秒以上かかる場合があります
+（[how-kv-works](https://developers.cloudflare.com/kv/concepts/how-kv-works/)）。加えて
+`get` → `put` は原子的な read-modify-write ではありません。したがって **KV の可視化遅延中は、
+同時・逐次を問わず別エッジでの再交換を拒否できません**。
+
+EcAuth も E2E も認可コードを 1 回しか交換しないためモック用途では許容と判断していますが、
+厳密性が必要になったら Durable Objects へ移してください。**「単回使用を保証する」「逐次的な
+再利用は防げる」と書き換えないこと**（後者も KV の可視化遅延があるため成り立ちません）。
+
+### テナント設定
+
+`organization` / `client` / `mock_idp_user` の 3 テーブルは廃止し、Workers Secret の
+`MOCKIDP_{DEV,STAGING,PRODUCTION}_*` に置き換えました。命名は .NET 版の
+`EnvironmentClientUserSeeder` と 1Password のアイテム構成をそのまま引き継いでいます。
+
+**ユーザーはテナントごとに 1 人ですが、クライアントは複数持てます**（既定 + `FEDERATE_` 接頭辞の
+2 件）。EcAuth のフェデレーション E2E は `defaultuser@example.com` でログインしつつ
+`federateclientid` でトークンを交換するため、dev テナントには 2 件目が必須です。これは旧 .NET 版で
+`InsertFederateClient` マイグレーションが作っていたクライアントに相当します。
+**1 テナント 1 クライアントに戻すと EcAuth 側の
+`federate_authorization_code_flow.spec.ts` が壊れます。**
+
+**テナント設定を `wrangler.jsonc` の `vars` に書かないこと。** 本リポジトリは公開されており、
+staging / production の `redirect_uri` は EcAuth のデプロイ先 URL を含みます
+（ルート CLAUDE.md の「Azure にデプロイしたエンドポイントの URL を載せない」方針）。
+
+### `sub` の導出
+
+`sha256("{org}:{email}")` の先頭 32 桁から決定的に導出します。EcAuth 側では
+`ExternalIdpMapping.ExternalSubject` として保存され、JIT プロビジョニングのキーになるため、
+**同じユーザーなら常に同じ値である必要があります**。
+
+.NET 版は DB の連番 ID（`mock_idp_user.id`）を返していたため、そのままだと移行で `sub` が
+変わり、**既存の `ExternalIdpMapping` と一致せず JIT で重複ユーザーが作られます**。
+
+そのため staging / production は `MOCKIDP_{ENV}_USER_SUBJECT` で旧値を明示的に引き継いで
+います（1Password の `mockidp-{staging,production}/user_subject`）。**この設定を外さないこと。**
+dev は EcAuth のローカル DB が使い捨てなので設定していません（ハッシュ導出のまま）。
+
+新しく移行する環境での手順は README の「旧 `sub` の引き継ぎ」を参照してください。
+
+### パスワード検証
+
+Workers Free プランの **CPU 制限は 1 リクエストあたり 10ms** です。ASP.NET Identity の
+`PasswordHasher`（PBKDF2 10 万イテレーション）はこれを超えるため採用していません。
+
+MockIdP の認証情報は 1Password から注入されるテスト用の固定値であり、ユーザーが登録した秘密を
+保管しているわけではないので、`src/compare.ts` の定数時間比較で十分です。
+**「セキュリティ向上のため」と称してハッシュ化に戻さないこと。**
+
+## .NET 版からの意図的な差分
+
+移植にあたって挙動を変えた箇所です。EcAuth 側との契約に関わるため、戻す前に影響を確認してください。
+
+| 項目 | .NET 版 | Workers 版 | 理由 |
+|---|---|---|---|
+| `redirect_uri` 不一致時 | 要求された URL へエラー付きでリダイレクト | **400 を返す** | オープンリダイレクトの回避。RFC 6749 §4.1.2.1 準拠 |
+| トークン要求の `redirect_uri` | 非空チェックのみ | 認可時の値と一致を検証 | RFC 6749 §4.1.3 準拠。EcAuth は両方で同じ値を送るため安全 |
+| `GET /userinfo/me` | テストユーザーの email を返す | **廃止** | 利用箇所が無く、公開エンドポイントで email を晒す必要がない |
+| `sub` の値 | DB の連番 int | `sha256(org:email)` の先頭 32 桁 | ステートレス化。`*_USER_SUBJECT` で上書き可 |
+| `state` / `nonce` の echo | 常に付与（空でも） | 指定された場合のみ付与 | 空パラメータを送らない |
+| ヘルスチェック | DB 疎通を確認 | 常に 200 | 起動時に接続する外部依存が無い |
+| 未設定テナント | organization 行があれば通過 | `invalid_organization` | 設定不足を早期に検出する |
+
+**維持している .NET 版の挙動**:
+
+- トークンエンドポイントのエラーは **HTTP 200 + `{"error": "..."}`**（RFC 6749 §5.2 は 400 を
+  求めるが、既存挙動を優先）
+- リフレッシュトークンはローテーションせず、同じ値を返す
+- 認可コードの有効期間は 1 時間
+- `/authorization` はログイン画面を出さず Basic 認証で即リダイレクト
+  （EcAuth の E2E が Playwright の `httpCredentials` に依存している）
 
 ## 開発コマンド
 
-### セットアップ
-
 ```bash
-# リポジトリクローン
-git clone https://github.com/EcAuth/EcAuth.MockIdP.git
-cd EcAuth.MockIdP
+# 依存インストール（ワークスペースなので e2e-tests の分も入る）
+pnpm install
 
-# 環境設定
-cp .env.dist .env
-# .env を編集してデータベース接続文字列を設定
-```
+# ローカル用バインディングを用意（テスト値のみ。1Password 不要）
+cp .dev.vars.example .dev.vars
 
-### GitHub Packages 認証
+# 起動（http://localhost:8787）
+pnpm dev
 
-このプロジェクトは GitHub Packages から `EcAuth.IdpUtilities` NuGet パッケージを取得するため、認証設定が必要です。
+# 型チェック
+pnpm run typecheck
 
-```bash
-# GitHub CLI を使用して自動設定（一度だけ実行）
-echo "protocol=https
-host=github.com" | gh auth git-credential get | awk -F= '/username/ {u=$2} /password/ {p=$2} END {system("dotnet nuget add source https://nuget.pkg.github.com/EcAuth/index.json --name github --username " u " --password " p " --store-password-in-clear-text")}'
-```
+# ユニットテスト
+pnpm test
 
-**GitHub Actions での認証設定については [EcAuthDocs/claude-repository-guide.md](https://github.com/EcAuth/EcAuthDocs/blob/main/claude-repository-guide.md#github-packages-認証) を参照してください。**
-
-### ビルドとテスト
-
-```bash
-# ソリューションビルド
-dotnet build EcAuth.MockIdP.sln
-
-# ユニットテスト実行
-dotnet test
-
-# 特定のテストクラス実行
-dotnet test --filter ClassName=TokenControllerTests
-```
-
-### データベース操作
-
-```bash
-cd src/MockOpenIdProvider
-
-# マイグレーション追加
-dotnet ef migrations add <MigrationName>
-
-# マイグレーション適用
-export $(cat ../../.env | grep -v '^#' | xargs)
-dotnet ef database update
-```
-
-### Docker Compose での起動
-
-```bash
-# .env ファイルを確認（GITHUB_TOKEN が設定されていること）
-cat .env | grep GITHUB_TOKEN
-
-# ビルド・起動
-docker compose up -d --build
-
-# ログ確認
-docker compose logs -f mockopenidprovider
-```
-
-**アクセス URL:**
-- HTTP: `http://localhost:9090`
-- HTTPS: `https://localhost:9091`
-
-## アーキテクチャ
-
-### マルチテナント設計
-
-```
-OrganizationMiddleware (リクエストから Organization を抽出)
-  ↓
-OrganizationService (現在の Organization コンテキストを保持)
-  ↓
-IdpDbContext (グローバルクエリフィルターを適用)
-  ↓
-全エンティティが自動的に OrganizationId でフィルタリング
-```
-
-- **OrganizationMiddleware**: クエリパラメータ `?org=` またはヘッダー `X-Organization` から organization を抽出
-- **グローバルクエリフィルター**: 全データベースクエリに自動適用
-
-### エンティティモデル
-
-```
-Organization (テナント)
-  ├─ MockIdpUser (ユーザー)
-  ├─ Client (OAuth2 クライアント)
-  ├─ AuthorizationCode (認可コード)
-  ├─ AccessToken (アクセストークン)
-  └─ RefreshToken (リフレッシュトークン)
-```
-
-### OAuth2/OIDC フロー
-
-```
-/authorization?org=dev → 認可コード生成 → クライアントにリダイレクト
-/token?org=dev → 認可コード検証 → アクセストークン + ID トークン発行
-/userinfo?org=dev → アクセストークン検証 → ユーザー情報返却
+# 特定のテストファイルのみ
+pnpm exec vitest run test/tenancy.test.ts
 ```
 
 ## プロジェクト構造
 
-```
+```text
 EcAuth.MockIdP/
-├── src/MockOpenIdProvider/        # メインアプリケーション
-│   ├── Controllers/               # API コントローラー
-│   ├── Models/                    # エンティティモデル
-│   ├── Services/                  # ビジネスロジック
-│   ├── Middlewares/               # リクエストパイプライン
-│   └── Migrations/                # EF Core マイグレーション
-├── tests/MockOpenIdProvider.Test/ # ユニットテスト
-├── e2e-tests/                     # Playwright E2E テスト
-└── .github/workflows/             # CI/CD パイプライン
+├── src/
+│   ├── index.ts              # ルーティング + テナント解決ミドルウェア
+│   ├── env.ts                # バインディング型と env 読み出しヘルパー
+│   ├── tenants.ts            # テナント解決・sub の導出
+│   ├── tokens.ts             # HS256 署名トークンの発行・検証
+│   ├── compare.ts            # 定数時間比較
+│   ├── types.ts              # Hono の型引数
+│   └── routes/
+│       ├── authorization.ts
+│       ├── token.ts
+│       └── userinfo.ts
+├── test/                     # Vitest（Workers ランタイム上で実行）
+├── e2e-tests/                # Playwright（ワークスペースメンバー）
+├── scripts/collect-secrets.mjs
+├── wrangler.jsonc
+├── .env.workers.tpl          # Workers Secret 投入用 1Password テンプレート
+├── .env.cloudflare.tpl       # wrangler の認証情報（デプロイ用）
+└── .dev.vars.example         # ローカル用（平文。意図的）
 ```
 
-## E2E テスト
+**`.env.workers.tpl` と `.env.cloudflare.tpl` を統合しないこと。** 前者は Worker に注入する
+シークレット、後者は Cloudflare API の認証情報で、混ぜると API トークンを Worker Secret として
+公開してしまう。
 
-Playwright を使用した E2E テストスイートが `e2e-tests/` ディレクトリに配置されています。
+wrangler は `wrangler login` ではなく 1Password 経由で認証する。
 
 ```bash
-cd e2e-tests
-
-# 依存関係インストール
-pnpm install
-
-# Playwright インストール
-pnpm exec playwright install --with-deps chromium
-
-# 全テスト実行
-pnpm test
-
-# Organization 別実行
-pnpm run test:dev
-pnpm run test:staging
+op run --env-file=.env.cloudflare.tpl -- pnpm exec wrangler <command>
 ```
 
-詳細は [e2e-tests/README.md](./e2e-tests/README.md) を参照してください。
+## pnpm ワークスペース
 
-## デプロイ
+ルート（Worker 本体）と `e2e-tests/`（Playwright）の 2 パッケージ構成です。
+**`e2e-tests/` 側に個別の lockfile を置かないでください。** ルートに
+`pnpm-workspace.yaml` がある状態で `e2e-tests` を独立パッケージとして扱うと、
+pnpm がワークスペース root を親と解釈して `node_modules` を作り直そうとし、
+`ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY` で失敗します。
 
-### Azure リソース
+依存の追加はルートから行います。
 
-- **Azure SQL Database**: Basic 5DTU（2GB）
-- **Azure Container Apps**: 自動スケーリング（0-3 インスタンス）
-- **Log Analytics Workspace**: 監視用
+```bash
+pnpm add -D <pkg>                              # Worker 本体
+pnpm --filter ecauth-mockidp-e2e-tests add -D <pkg>   # E2E
+```
 
-### コスト最適化
+## CI/CD
 
-- SQL Database: Basic 5DTU（月額約¥700）
-- Container Apps: 最小使用量（月額約¥100）
-- アイドル時はゼロにスケール
+| ワークフロー | 内容 |
+|---|---|
+| `.github/workflows/ci.yml` | 型チェック + Vitest |
+| `.github/workflows/e2e-tests.yml` | `wrangler dev` を起動して Playwright E2E |
+| `.github/workflows/deploy.yml` | `main` push で `wrangler deploy` + ヘルスチェック |
+
+**Workers Secret は CI で投入しません。** `wrangler deploy` はシークレットを上書きしないため、
+値を変えるときだけ README の「シークレットの投入」をローカルから実行します。
+
+## EcAuth 側との連携
+
+EcAuth は `open_id_provider` テーブルに MockIdP のエンドポイントを保持しています。
+
+- **`OrganizationClientSeeder.SeedOpenIdProviderAsync` は既存行を更新しません**
+  （同名レコードがあれば `return false`）。エンドポイントを変更するときは、
+  環境変数を変えるだけでは反映されないため、EcAuth 側に UPDATE マイグレーションが必要です。
+- EcAuth は認可リクエストとトークンリクエストの両方で
+  `DEFAULT_ORGANIZATION_REDIRECT_URI` を送ります。
+- EcAuth は `state` を送りますが `nonce` は送りません。
+- EcAuth は `id_token` を使わず、`/userinfo` から `sub` を取得します。
 
 ## コーディング規約
 
 - 行末の空白を削除
 - 改行コードは LF
 - 日本語コメント・ドキュメント可
-- セキュリティ脆弱性（SQL Injection、XSS など）を回避
+- セキュリティ脆弱性（オープンリダイレクト、タイミング攻撃など）に注意
 
 ## トラブルシューティング
 
-### ビルドエラー
+### `wrangler dev` が起動しない
+
+`.dev.vars` があるか確認してください（`cp .dev.vars.example .dev.vars`）。
+
+### デプロイ後に `invalid_organization` が返る
+
+対象テナントの Workers Secret が揃っていません。必須項目
+（`CLIENT_ID` / `CLIENT_SECRET` / `REDIRECT_URI` / `USER_EMAIL` / `USER_PASSWORD`）が
+1 つでも欠けていると未設定扱いになります。
 
 ```bash
-# NuGet restore 失敗時
-dotnet nuget list source
-# "github" ソースが設定されていることを確認
-
-# NuGet キャッシュクリア
-dotnet nuget locals all --clear
-dotnet restore --force
+pnpm exec wrangler secret list
 ```
 
-### Organization フィルタリング問題
+### トークン検証がすべて失敗する
 
-- `Program.cs` で OrganizationMiddleware が登録されているか確認
-- OrganizationService が Scoped として登録されているか確認
-- `OnModelCreating()` でグローバルクエリフィルターが適用されているか確認
+`TOKEN_SIGNING_KEY` を変更すると、それ以前に発行されたトークンはすべて無効になります。
+デプロイ直後に既存のトークンが弾かれるのは想定どおりです。
