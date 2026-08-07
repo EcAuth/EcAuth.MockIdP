@@ -34,6 +34,10 @@ MOCKIDP_STAGING_CLIENT_NAME=StagingClient
 MOCKIDP_STAGING_REDIRECT_URI=op://EcAuth/mockidp-staging/redirect_uri
 MOCKIDP_STAGING_USER_EMAIL=op://EcAuth/mockidp-staging/default_user_email
 MOCKIDP_STAGING_USER_PASSWORD=op://EcAuth/mockidp-staging/default_user_password
+# 旧 .NET 版（Azure SQL）の mock_idp_user.id を引き継ぐ。省略すると
+# sha256("staging:<email>") から導出した別の値になり、EcAuth 側の
+# ExternalIdpMapping と一致しなくなって JIT で重複ユーザーが作られる。
+MOCKIDP_STAGING_USER_SUBJECT=op://EcAuth/mockidp-staging/user_subject
 
 # --- production テナント ---
 MOCKIDP_PRODUCTION_CLIENT_ID=op://EcAuth/mockidp-production/default_client_id
@@ -42,3 +46,5 @@ MOCKIDP_PRODUCTION_CLIENT_NAME=ProductionClient
 MOCKIDP_PRODUCTION_REDIRECT_URI=op://EcAuth/mockidp-production/redirect_uri
 MOCKIDP_PRODUCTION_USER_EMAIL=op://EcAuth/mockidp-production/default_user_email
 MOCKIDP_PRODUCTION_USER_PASSWORD=op://EcAuth/mockidp-production/default_user_password
+# 旧 .NET 版（Azure SQL）の mock_idp_user.id を引き継ぐ（上記 staging と同じ理由）
+MOCKIDP_PRODUCTION_USER_SUBJECT=op://EcAuth/mockidp-production/user_subject

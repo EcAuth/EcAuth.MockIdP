@@ -34,15 +34,18 @@ HS256 署名トークン（永続化なし）
 Organization ごとに **User 1 人・Client 1〜2 件**（既定 + 任意の federate）を持つ構成で、
 すべて設定値から解決します。テーブルもマイグレーションも存在しません。
 
-### 認可コードの再利用防止について
+### 認可コードの再利用について（単回使用は保証しません）
 
-使用済みの認可コードは KV に `jti` を TTL 付きで記録して弾きます。これにより
-**逐次的な再利用**（一度使ったコードを後から使い回す）は防げます。
+使用済みの認可コードは KV に `jti` を TTL 付きで記録し、再交換を弾こうとします。
+ただし**これは単回使用の保証ではありません**。
 
-一方 Cloudflare KV は結果整合で、`get` → `put` は原子的な read-modify-write では
-ありません。そのため**同一コードを別エッジから同時に交換された場合、複数が成功しうる**
-という制約があります。厳密な排他が必要になったら Durable Objects へ移す必要があります
-が、モック IdP の用途（EcAuth も E2E も 1 回しか交換しない）では過剰と判断しています。
+[Cloudflare KV は結果整合](https://developers.cloudflare.com/kv/concepts/how-kv-works/)で、
+書き込みは同一ロケーションでも即時可視とは限らず、他のロケーションへは 60 秒以上かかる
+場合があります。加えて `get` → `put` は原子的な read-modify-write ではありません。
+したがって **KV の可視化遅延中は、同時・逐次を問わず別エッジでの再交換を拒否できません。**
+
+厳密な排他が必要になったら Durable Objects へ移す必要がありますが、モック IdP の用途
+（EcAuth も E2E も認可コードを 1 回しか交換しない）では過剰と判断しています。
 
 ## エンドポイント
 
@@ -100,9 +103,16 @@ GET /userinfo?org=dev
 Authorization: Bearer {access_token}
 ```
 
-`sub` は `sha256("{org}:{email}")` の先頭 32 桁から決定的に導出されます。
-同じテナント・同じユーザーなら常に同じ値になります。明示指定したい場合は
-`MOCKIDP_{ENV}_USER_SUBJECT` を設定してください。
+`sub` は既定では `sha256("{org}:{email}")` の先頭 32 桁から決定的に導出されます。
+同じテナント・同じユーザーなら常に同じ値になります。
+
+`MOCKIDP_{ENV}_USER_SUBJECT` を設定すると、この値を明示的に上書きできます。
+
+> **旧 .NET 版から移行する場合は上書きが必要です。** 旧版は `sub` に
+> `mock_idp_user.id`（連番の整数）を返していました。EcAuth 側はこの値を
+> `ExternalIdpMapping.ExternalSubject` として保存しているため、導出方式が変わると
+> **既存ユーザーと一致せず JIT で重複ユーザーが作られます**。
+> 手順は「[旧 `sub` の引き継ぎ](#旧-sub-の引き継ぎ)」を参照してください。
 
 ## セットアップ
 
@@ -217,6 +227,43 @@ op run --env-file=.env.workers.tpl -- node scripts/collect-secrets.mjs \
 
 必須項目（`CLIENT_ID` / `CLIENT_SECRET` / `REDIRECT_URI` / `USER_EMAIL` / `USER_PASSWORD`）が
 1 つでも欠けているテナントは「未設定」とみなされ、`invalid_organization` を返します。
+
+### 旧 `sub` の引き継ぎ
+
+旧 .NET 版は `sub` に `mock_idp_user.id`（連番の整数）を返していました。EcAuth 側は
+これを `ExternalIdpMapping.ExternalSubject` として保存するため、引き継がないと既存
+ユーザーと一致せず JIT で重複ユーザーが作られます。
+
+**dev は不要**です（EcAuth のローカル DB は使い捨てのため）。**staging / production は
+必要**で、本リポジトリでは移行時に引き継ぎ済みです。
+
+新しく移行する環境で引き継ぐ手順は次のとおりです。
+
+1. **旧 `sub` を取得する。** 旧デプロイが稼働中なら、認可コードフローを 1 回通して
+   `/userinfo` の戻り値を見るのが確実です。
+
+   ```bash
+   # 旧デプロイに対して authorization → token → userinfo を実行し sub を得る
+   curl -s "$OLD_BASE_URL/userinfo?org=staging" -H "Authorization: Bearer $OLD_ACCESS_TOKEN"
+   # => {"sub":"3"}
+   ```
+
+   旧デプロイが停止済みなら、旧 DB の `mock_idp_user.id` を直接参照します。
+
+2. **1Password に保存する。** 対象アイテム（`mockidp-staging` など）に
+   `user_subject` フィールドを追加し、取得した値を入れます。
+
+3. **テンプレートに参照を追加する。** `.env.workers.tpl` に
+   `MOCKIDP_{ENV}_USER_SUBJECT=op://EcAuth/mockidp-{env}/user_subject` を書きます。
+
+4. **シークレットを投入して確認する。**
+
+   ```bash
+   op run --env-file=.env.workers.tpl -- node scripts/collect-secrets.mjs \
+     | pnpm exec wrangler secret bulk
+
+   # /userinfo が旧 sub を返すこと
+   ```
 
 ### テナントあたりのクライアントは複数持てる
 

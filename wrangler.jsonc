@@ -13,7 +13,7 @@
 
   // 使用済み認可コードを記録するための KV。
   // 値はマーカー（jti → "1"）のみで、機密情報は保存しない。
-  // 結果整合のため、同時交換に対する厳密な排他ではない（README 参照）。
+  // 結果整合のため単回使用の保証にはならない（README 参照）。
   //
   // セットアップ手順（初回のみ、README も参照）:
   //   pnpm exec wrangler kv namespace create USED_CODES

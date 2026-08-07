@@ -48,12 +48,15 @@ nonce                      （code のみ）
 **永続化が必要なのは「認可コードが使用済みかどうか」だけ**で、これは KV に `jti` を TTL 付きで
 書き込むことで実現しています。
 
-これは **逐次的な再利用**（一度使ったコードを後から使い回す）を防ぐもので、**厳密な単回使用の
-保証ではありません**。Cloudflare KV は結果整合であり、`get` → `put` は原子的な
-read-modify-write ではないため、同一コードを別エッジから同時に交換された場合は複数が成功
-しえます。EcAuth も E2E も 1 回しか交換しないためモック用途では許容と判断していますが、
-厳密性が必要になったら Durable Objects へ移してください。**「単回使用を保証する」と
-書き換えないこと。**
+**これは単回使用の保証ではありません。** Cloudflare KV は結果整合で、書き込みは同一
+ロケーションでも即時可視とは限らず、他のロケーションへは 60 秒以上かかる場合があります
+（[how-kv-works](https://developers.cloudflare.com/kv/concepts/how-kv-works/)）。加えて
+`get` → `put` は原子的な read-modify-write ではありません。したがって **KV の可視化遅延中は、
+同時・逐次を問わず別エッジでの再交換を拒否できません**。
+
+EcAuth も E2E も認可コードを 1 回しか交換しないためモック用途では許容と判断していますが、
+厳密性が必要になったら Durable Objects へ移してください。**「単回使用を保証する」「逐次的な
+再利用は防げる」と書き換えないこと**（後者も KV の可視化遅延があるため成り立ちません）。
 
 ### テナント設定
 
@@ -78,8 +81,14 @@ staging / production の `redirect_uri` は EcAuth のデプロイ先 URL を含
 `ExternalIdpMapping.ExternalSubject` として保存され、JIT プロビジョニングのキーになるため、
 **同じユーザーなら常に同じ値である必要があります**。
 
-.NET 版は DB の連番 ID（`mock_idp_user.id`）を返していたため、移行によって `sub` が変わります。
-旧値に合わせる必要がある場合は `MOCKIDP_{ENV}_USER_SUBJECT` で明示的に上書きしてください。
+.NET 版は DB の連番 ID（`mock_idp_user.id`）を返していたため、そのままだと移行で `sub` が
+変わり、**既存の `ExternalIdpMapping` と一致せず JIT で重複ユーザーが作られます**。
+
+そのため staging / production は `MOCKIDP_{ENV}_USER_SUBJECT` で旧値を明示的に引き継いで
+います（1Password の `mockidp-{staging,production}/user_subject`）。**この設定を外さないこと。**
+dev は EcAuth のローカル DB が使い捨てなので設定していません（ハッシュ導出のまま）。
+
+新しく移行する環境での手順は README の「旧 `sub` の引き継ぎ」を参照してください。
 
 ### パスワード検証
 

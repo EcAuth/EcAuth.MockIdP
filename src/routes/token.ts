@@ -68,11 +68,12 @@ export async function handleToken(c: Context<AppBindings>) {
 
     // 使用済み判定。.NET 版の authorization_code.used 相当。
     //
-    // これは「一度使ったコードを後から使い回す」逐次的な再利用を防ぐもので、
-    // 厳密な単回使用の保証ではない。Cloudflare KV は結果整合であり、
-    // 下の get → put は原子的な read-modify-write ではないため、同一コードを
-    // 別エッジから同時に交換された場合は複数が成功しうる。
-    // 厳密な排他が必要になったら Durable Objects へ移すこと。
+    // **単回使用の保証ではない。** Cloudflare KV は結果整合で、書き込みは
+    // 同一ロケーションでも即時可視とは限らず、他のロケーションへは 60 秒以上
+    // かかる場合がある（https://developers.cloudflare.com/kv/concepts/how-kv-works/）。
+    // さらに下の get → put は原子的な read-modify-write ではない。
+    // したがって KV の可視化遅延中は、同時・逐次を問わず別エッジでの再交換を
+    // 拒否できない。厳密な排他が必要になったら Durable Objects へ移すこと。
     if (await c.env.USED_CODES.get(claims.jti)) return oauthError(c, 'invalid_grant');
     await c.env.USED_CODES.put(claims.jti, '1', { expirationTtl: CODE_TTL_SECONDS });
 
