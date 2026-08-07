@@ -27,11 +27,15 @@ e2e-tests/
 ├── fixtures/                        # カスタムfixture定義
 │   └── organization.ts
 ├── playwright.config.ts
+├── tsconfig.json
 ├── package.json
 ├── .env.example
 ├── .gitignore
 └── README.md
 ```
+
+> **注**: このディレクトリはリポジトリルートの pnpm ワークスペースのメンバーです。
+> 個別に `pnpm-lock.yaml` を持たせないでください（詳細はルートの CLAUDE.md 参照）。
 
 ## セットアップ
 
@@ -43,9 +47,9 @@ e2e-tests/
 cp .env.example .env
 ```
 
-**ローカル環境の場合:**
+**ローカル環境（`wrangler dev`）の場合:**
 ```env
-MOCK_IDP_BASE_URL=https://localhost:9091
+MOCK_IDP_BASE_URL=http://127.0.0.1:8787
 CLIENT_ID=mockclientid
 CLIENT_SECRET=mock-client-secret
 REDIRECT_URI=https://localhost:8081/v1/auth/callback
@@ -53,26 +57,40 @@ TEST_USER_EMAIL=defaultuser@example.com
 TEST_USER_PASSWORD=password
 ```
 
-**Azure 環境の場合:**
+**デプロイ済み Worker に向ける場合:**
 ```env
-MOCK_IDP_BASE_URL=https://mock-idp.azurecontainerapps.io
+MOCK_IDP_BASE_URL=https://<worker-name>.<subdomain>.workers.dev
 CLIENT_ID=mockclientid
 CLIENT_SECRET=mock-client-secret
 REDIRECT_URI=https://localhost:8081/v1/auth/callback
 TEST_USER_EMAIL=defaultuser@example.com
 TEST_USER_PASSWORD=password
 ```
+
+`REDIRECT_URI` は MockIdP に登録された値と完全一致している必要があります
+（一致しない場合はリダイレクトされず 400 が返ります）。
 
 ### 2. 依存関係インストール
 
+pnpm ワークスペースなので、**リポジトリのルート**で 1 回実行すれば足ります。
+
 ```bash
+cd ..
 pnpm install
 ```
 
-### 3. Playwright インストール
+### 3. Playwright ブラウザのインストール
 
 ```bash
 pnpm exec playwright install --with-deps chromium
+```
+
+### 4. MockIdP の起動
+
+ローカルに向ける場合は、別ターミナルでルートから Worker を起動しておきます。
+
+```bash
+pnpm dev
 ```
 
 ## テスト実行
@@ -140,9 +158,9 @@ test('テスト名', async ({
 
 ```typescript
 // dev organization の場合
-endpoints.authorization = "https://localhost:9091/authorization?org=dev"
-endpoints.token = "https://localhost:9091/token?org=dev"
-endpoints.userinfo = "https://localhost:9091/userinfo?org=dev"
+endpoints.authorization = "http://127.0.0.1:8787/authorization?org=dev"
+endpoints.token = "http://127.0.0.1:8787/token?org=dev"
+endpoints.userinfo = "http://127.0.0.1:8787/userinfo?org=dev"
 ```
 
 ### Organization 固有の環境変数
@@ -185,12 +203,27 @@ STAGING_CLIENT_SECRET=staging-client-secret
 
 GitHub Actions ワークフロー（`.github/workflows/e2e-tests.yml`）により、以下が自動実行されます：
 
-1. SQL Server コンテナ起動
-2. MockOpenIdProvider ビルド・マイグレーション・起動
-3. E2E テスト実行（全 Organization）
-4. テスト結果アップロード（失敗時）
+1. ワークスペースの依存インストール
+2. `.dev.vars.example` をローカル用バインディングとして配置
+3. `wrangler dev` を起動（Miniflare によるローカル実行。Cloudflare の認証は不要）
+4. E2E テスト実行（全 Organization）
+5. テスト結果アップロード（失敗時）
 
 ## トラブルシューティング
+
+### Worker に接続できない
+
+`wrangler dev` が起動しているか、`MOCK_IDP_BASE_URL` のポートが合っているかを確認してください。
+
+```bash
+curl http://127.0.0.1:8787/healthz
+# {"status":"healthy"}
+```
+
+### 認可エンドポイントが 400 を返す
+
+`REDIRECT_URI` が MockIdP に登録された値と一致していません。オープンリダイレクトを防ぐため、
+不一致の場合はリダイレクトせず 400 を返します（.NET 版からの意図的な変更）。
 
 ### HTTPS 証明書エラー
 

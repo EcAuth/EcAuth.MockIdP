@@ -1,0 +1,22 @@
+# このリポジトリは 2 つの Node パッケージで構成される。
+#   - ルート: Cloudflare Workers 本体 (mock-openid-provider)
+#   - e2e-tests: Playwright E2E テスト (ecauth-mockidp-e2e-tests)
+#
+# 両者を 1 つのワークスペースにまとめ、ルートで 1 回 `pnpm install` すれば
+# 双方の依存が揃うようにしている。個別に lockfile を持つと、ルートの
+# pnpm-workspace.yaml をワークスペース root と解釈した pnpm が
+# e2e-tests 側の install で node_modules を作り直そうとして失敗する。
+packages:
+  - e2e-tests
+
+# Workers ランタイム (workerd) とバンドラ (esbuild) はネイティブバイナリを
+# postinstall で取得するため、ビルドスクリプトの実行を許可する必要がある。
+allowBuilds:
+  esbuild: true
+  workerd: true
+
+minimumReleaseAgeExclude:
+  - '@cloudflare/vitest-pool-workers@0.20.3'
+  - hono@4.13.1
+  - miniflare@5.20260801.1-alpha
+  - wrangler@4.120.0

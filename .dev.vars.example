@@ -1,0 +1,51 @@
+# wrangler dev 用のローカルシークレット雛形。
+#
+#   cp .dev.vars.example .dev.vars
+#
+# ここに書かれているのは **ローカル専用のテスト値** であり、デプロイ先の
+# 値とは無関係です。漏洩リスクがないため平文で管理します（1Password 化しません）。
+# 将来この判断を「セキュリティ向上のため」と称して変更しないこと。
+#
+# デプロイ環境（dev / staging / production）の実際の値は 1Password から
+# Workers Secret に投入します。README の「シークレットの投入」を参照。
+
+# トークン署名鍵（HS256）。ローカルでは固定値で構わない。
+TOKEN_SIGNING_KEY=local-development-signing-key-do-not-use-in-production
+
+# --- dev テナント ---
+MOCKIDP_DEV_CLIENT_ID=mockclientid
+MOCKIDP_DEV_CLIENT_SECRET=mock-client-secret
+MOCKIDP_DEV_CLIENT_NAME=MockClient
+MOCKIDP_DEV_REDIRECT_URI=https://localhost:8081/v1/auth/callback
+MOCKIDP_DEV_USER_EMAIL=defaultuser@example.com
+MOCKIDP_DEV_USER_PASSWORD=password
+
+# dev テナントの 2 件目のクライアント。
+# EcAuth のフェデレーション E2E はこの client_id でトークンを交換する
+# （ログインするユーザーは MOCKIDP_DEV_USER_* と同じ）。
+# redirect_uri を省略すると MOCKIDP_DEV_REDIRECT_URI を引き継ぐ。
+MOCKIDP_DEV_FEDERATE_CLIENT_ID=federateclientid
+MOCKIDP_DEV_FEDERATE_CLIENT_SECRET=federate-client-secret
+MOCKIDP_DEV_FEDERATE_CLIENT_NAME=FederateClient
+
+# --- staging テナント（ローカルでは通常未設定でよい） ---
+# MOCKIDP_STAGING_CLIENT_ID=
+# MOCKIDP_STAGING_CLIENT_SECRET=
+# MOCKIDP_STAGING_CLIENT_NAME=
+# MOCKIDP_STAGING_REDIRECT_URI=
+# MOCKIDP_STAGING_USER_EMAIL=
+# MOCKIDP_STAGING_USER_PASSWORD=
+
+# --- production テナント（ローカルでは通常未設定でよい） ---
+# MOCKIDP_PRODUCTION_CLIENT_ID=
+# MOCKIDP_PRODUCTION_CLIENT_SECRET=
+# MOCKIDP_PRODUCTION_CLIENT_NAME=
+# MOCKIDP_PRODUCTION_REDIRECT_URI=
+# MOCKIDP_PRODUCTION_USER_EMAIL=
+# MOCKIDP_PRODUCTION_USER_PASSWORD=
+
+# sub の明示指定（省略時は sha256("<org>:<email>") 先頭 32 桁から導出）。
+# 旧 .NET 版の mock_idp_user.id に合わせたい場合のみ設定する。
+# MOCKIDP_DEV_USER_SUBJECT=
+# MOCKIDP_STAGING_USER_SUBJECT=
+# MOCKIDP_PRODUCTION_USER_SUBJECT=

@@ -52,8 +52,9 @@ export default defineConfig({
 
     /**
      * ベースURL（環境変数から取得）
+     * 既定値は `wrangler dev` のローカルアドレス
      */
-    baseURL: process.env.MOCK_IDP_BASE_URL || 'https://localhost:9091',
+    baseURL: process.env.MOCK_IDP_BASE_URL || 'http://127.0.0.1:8787',
 
     /**
      * トレース記録（失敗時のみ）
@@ -125,12 +126,11 @@ export default defineConfig({
 
   /**
    * ローカル開発サーバー設定（必要に応じて有効化）
-   * MockOpenIdProvider をローカルで起動する場合はコメント解除
+   * Worker を Playwright から自動起動したい場合はコメント解除
    */
   // webServer: {
-  //   command: 'cd ../src/MockOpenIdProvider && dotnet run',
-  //   url: 'https://localhost:9091',
+  //   command: 'pnpm --dir .. dev',
+  //   url: 'http://127.0.0.1:8787/healthz',
   //   reuseExistingServer: !process.env.CI,
-  //   ignoreHTTPSErrors: true,
   // },
 });
