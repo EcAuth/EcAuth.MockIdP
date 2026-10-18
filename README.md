@@ -191,7 +191,13 @@ Cloudflare の API トークンを Worker Secret として公開してしまう�
    | `CLOUDFLARE_API_TOKEN` | `wrangler deploy` 用の API トークン |
    | `CLOUDFLARE_ACCOUNT_ID` | デプロイ先アカウント ID |
 
-   値は 1Password の `cloudflare-credentials` アイテムと同じです。
+   値は 1Password（skirnir.1password.com）の次のアイテムと同じです（他プロジェクトと共用のため
+   共通 vault に一元化している）。
+
+   | シークレット | 1Password のアイテム |
+   |---|---|
+   | `CLOUDFLARE_API_TOKEN` | `skirnir-shared-secrets/cloudflare-api-token`（フィールド `CLOUDFLARE_API_TOKEN`） |
+   | `CLOUDFLARE_ACCOUNT_ID` | `skirnir-common/cloudflare-account`（フィールド `CLOUDFLARE_ACCOUNT_ID`） |
 
 ### シークレットの投入
 
